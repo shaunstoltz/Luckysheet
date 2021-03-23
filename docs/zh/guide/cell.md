@@ -154,15 +154,6 @@
         </td>
         <td></td>
     </tr>
-    <tr>
-        <td>ae</td>
-        <td>allowEdit</td>
-        <td>是否允许编辑</td>
-        <td>
-        0: 只读，不可编辑 1：可以编辑，默认为 1
-        </td>
-        <td></td>
-    </tr>
 </table>
 
 一个规范的单元格对象如下：
@@ -339,7 +330,7 @@ Luckysheet在存储数字类型的内容时，支持多种格式转换，所以�
 ]
 ```
 
-> borderInfo 详细参考：[表格数据config](/zh/guide/data.html#config)
+> borderInfo 详细参考：[config.borderInfo](/zh/guide/sheet.html#config-borderinfo)
 
 ## 简化的单元格数据
 

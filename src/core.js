@@ -15,12 +15,12 @@ import {rowColumnOperationInitial} from './controllers/rowColumnOperation';
 import {keyboardInitial} from './controllers/keyboard';
 import {orderByInitial} from './controllers/orderBy';
 import {initPlugins} from './controllers/expendPlugins';
-import { 
-    getluckysheetfile, 
-    getluckysheet_select_save, 
-    getconfig, 
+import {
+    getluckysheetfile,
+    getluckysheet_select_save,
+    getconfig,
 } from './methods/get';
-import { 
+import {
     setluckysheet_select_save
 } from './methods/set';
 import { luckysheetrefreshgrid, jfrefreshgrid } from './global/refresh';
@@ -30,18 +30,36 @@ import { getcellvalue, getdatabyselection } from './global/getdata';
 import { setcellvalue } from './global/setdata';
 import { selectHightlightShow } from './controllers/select';
 import {zoomInitial} from './controllers/zoom';
+import {printInitial} from './controllers/print';
 import method from './global/method';
 
 import * as api from './global/api';
+
+import flatpickr from 'flatpickr'
+import Mandarin from 'flatpickr/dist/l10n/zh.js'
+import { initListener } from './controllers/listener';
 
 let luckysheet = {};
 
 // mount api
 // luckysheet.api = api;
-Object.assign(luckysheet, api);
+// Object.assign(luckysheet, api);
+
+luckysheet = common_extend(api,luckysheet);
+
+
 
 //创建luckysheet表格
 luckysheet.create = function (setting) {
+    method.destroy()
+    // Store original parameters for api: toJson
+    Store.toJsonOptions = {}
+    for(let c in setting){
+        if(c !== 'data'){
+            Store.toJsonOptions[c] = setting[c];
+        }
+    }
+
     let extendsetting = common_extend(defaultSetting, setting);
 
     let loadurl = extendsetting.loadUrl,
@@ -53,9 +71,13 @@ luckysheet.create = function (setting) {
     Store.luckysheetfile = extendsetting.data;
     Store.defaultcolumnNum = extendsetting.column;
     Store.defaultrowNum = extendsetting.row;
+    Store.defaultFontSize = extendsetting.defaultFontSize;
     Store.fullscreenmode = extendsetting.fullscreenmode;
     Store.lang = extendsetting.lang; //language
     Store.allowEdit = extendsetting.allowEdit;
+    Store.limitSheetNameLength =  extendsetting.limitSheetNameLength;
+    Store.defaultSheetNameMaxLength = extendsetting.defaultSheetNameMaxLength;
+    Store.fontList = extendsetting.fontList;
     server.gridKey = extendsetting.gridKey;
     server.loadUrl = extendsetting.loadUrl;
     server.updateUrl = extendsetting.updateUrl;
@@ -68,11 +90,18 @@ luckysheet.create = function (setting) {
     luckysheetConfigsetting.accuracy = extendsetting.accuracy;
     luckysheetConfigsetting.total = extendsetting.data[0].total;
 
+    luckysheetConfigsetting.loading = extendsetting.loading;
     luckysheetConfigsetting.allowCopy = extendsetting.allowCopy;
     luckysheetConfigsetting.showtoolbar = extendsetting.showtoolbar;
+    luckysheetConfigsetting.showtoolbarConfig = extendsetting.showtoolbarConfig;
     luckysheetConfigsetting.showinfobar = extendsetting.showinfobar;
     luckysheetConfigsetting.showsheetbar = extendsetting.showsheetbar;
+    luckysheetConfigsetting.showsheetbarConfig = extendsetting.showsheetbarConfig;
     luckysheetConfigsetting.showstatisticBar = extendsetting.showstatisticBar;
+    luckysheetConfigsetting.showstatisticBarConfig = extendsetting.showstatisticBarConfig;
+    luckysheetConfigsetting.sheetFormulaBar = extendsetting.sheetFormulaBar;
+    luckysheetConfigsetting.cellRightClickConfig = extendsetting.cellRightClickConfig;
+    luckysheetConfigsetting.sheetRightClickConfig = extendsetting.sheetRightClickConfig;
     luckysheetConfigsetting.pointEdit = extendsetting.pointEdit;
     luckysheetConfigsetting.pointEditUpdate = extendsetting.pointEditUpdate;
     luckysheetConfigsetting.pointEditZoom = extendsetting.pointEditZoom;
@@ -84,25 +113,40 @@ luckysheet.create = function (setting) {
 
     luckysheetConfigsetting.showConfigWindowResize = extendsetting.showConfigWindowResize;
     luckysheetConfigsetting.enableAddRow = extendsetting.enableAddRow;
-    luckysheetConfigsetting.enableAddCol = extendsetting.enableAddCol;
+    luckysheetConfigsetting.enableAddBackTop = extendsetting.enableAddBackTop;
     luckysheetConfigsetting.enablePage = extendsetting.enablePage;
     luckysheetConfigsetting.pageInfo = extendsetting.pageInfo;
 
     luckysheetConfigsetting.editMode = extendsetting.editMode;
     luckysheetConfigsetting.beforeCreateDom = extendsetting.beforeCreateDom;
+    luckysheetConfigsetting.workbookCreateBefore = extendsetting.workbookCreateBefore;
+    luckysheetConfigsetting.workbookCreateAfter = extendsetting.workbookCreateAfter;
 
     luckysheetConfigsetting.fireMousedown = extendsetting.fireMousedown;
     luckysheetConfigsetting.forceCalculation = extendsetting.forceCalculation;
     luckysheetConfigsetting.plugins = extendsetting.plugins;
 
     luckysheetConfigsetting.rowHeaderWidth = extendsetting.rowHeaderWidth;
-    luckysheetConfigsetting.columeHeaderHeight = extendsetting.columeHeaderHeight;
+    luckysheetConfigsetting.columnHeaderHeight = extendsetting.columnHeaderHeight;
 
     luckysheetConfigsetting.defaultColWidth = extendsetting.defaultColWidth;
     luckysheetConfigsetting.defaultRowHeight = extendsetting.defaultRowHeight;
 
     luckysheetConfigsetting.title = extendsetting.title;
+    luckysheetConfigsetting.container = extendsetting.container;
+    luckysheetConfigsetting.hook = extendsetting.hook;
 
+    luckysheetConfigsetting.pager = extendsetting.pager;
+
+    luckysheetConfigsetting.initShowsheetbarConfig = false;
+
+    luckysheetConfigsetting.imageUpdateMethodConfig = extendsetting.imageUpdateMethodConfig;
+
+    if (Store.lang === 'zh') flatpickr.localize(Mandarin.zh);
+
+    // Store the currently used plugins for monitoring asynchronous loading
+    Store.asyncLoad.push(...luckysheetConfigsetting.plugins);
+    
     // Register plugins
     initPlugins(extendsetting.plugins , extendsetting.data);
 
@@ -116,9 +160,9 @@ luckysheet.create = function (setting) {
     Store.devicePixelRatio = Math.ceil(devicePixelRatio);
 
     //loading
-    $("#" + container).append(luckysheetlodingHTML());
+    const loadingObj=luckysheetlodingHTML("#" + container)
+    Store.loadingObj=loadingObj
 
-    let data = [];
     if (loadurl == "") {
         sheetmanage.initialjfFile(menu, title);
         // luckysheetsizeauto();
@@ -126,16 +170,16 @@ luckysheet.create = function (setting) {
     }
     else {
         $.post(loadurl, {"gridKey" : server.gridKey}, function (d) {
-            let data = eval("(" + d + ")");
+            let data = new Function("return " + d)();
             Store.luckysheetfile = data;
-            
+
             sheetmanage.initialjfFile(menu, title);
             // luckysheetsizeauto();
             initialWorkBook();
 
             //需要更新数据给后台时，建立WebSocket连接
             if(server.allowUpdate){
-                server.openWebSocket();    
+                server.openWebSocket();
             }
         });
     }
@@ -151,6 +195,8 @@ function initialWorkBook(){
     keyboardInitial();//Keyboard operate initialization
     orderByInitial();//menu bar orderby function initialization
     zoomInitial();//zoom method initialization
+    printInitial();//print initialization
+    initListener();
 }
 
 //获取所有表格数据
@@ -195,18 +241,6 @@ luckysheet.flowdata = function () {
 
 // Set selection highlight
 luckysheet.selectHightlightShow = selectHightlightShow;
-
-// Set the worksheet to hide
-// Use the call method to change the `this` of the function to `this` of sheetmanage,
-// Prevent _this error in setSheetHide
-luckysheet.setSheetHide = function(index) {
-    return sheetmanage.setSheetHide.call(sheetmanage,index);
-}
-
-// Set the worksheet to show
-luckysheet.setSheetShow = function(index) {
-    return sheetmanage.setSheetShow.call(sheetmanage,index);
-}
 
 // Reset parameters after destroying the table
 luckysheet.destroy = method.destroy;

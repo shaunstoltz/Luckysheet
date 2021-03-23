@@ -12,6 +12,8 @@ import tooltip from '../global/tooltip';
 import func_methods from '../global/func_methods';
 import Store from '../store';
 import locale from '../locale/locale';
+import {checkProtectionLockedRangeList,checkProtectionAllSelected,checkProtectionSelectLockedOrUnLockedCells,checkProtectionNotEnable,checkProtectionLocked} from './protection';
+
 
 //查找替换
 const luckysheetSearchReplace = {
@@ -476,6 +478,11 @@ const luckysheetSearchReplace = {
         const _locale = locale();
         const locale_findAndReplace = _locale.findAndReplace;
 
+        if(!Store.allowEdit){
+            tooltip.info(locale_findAndReplace.modeTip, "");
+            return;
+        }
+
         let searchText = $("#luckysheet-search-replace #searchInput input").val();
         if(searchText == "" || searchText == null){
             if(isEditMode()){
@@ -570,6 +577,10 @@ const luckysheetSearchReplace = {
 
             let v = replaceText;
 
+            if(!checkProtectionLocked(r, c, Store.currentSheetIndex)){
+                return;
+            }
+
             setcellvalue(r, c, d, v);
         }
         else{
@@ -583,6 +594,10 @@ const luckysheetSearchReplace = {
 
             r = searchIndexArr[count].r;
             c = searchIndexArr[count].c;
+
+            if(!checkProtectionLocked(r, c, Store.currentSheetIndex)){
+                return;
+            }
 
             let v = valueShowEs(r, c, d).toString().replace(reg, replaceText);
 
@@ -627,6 +642,11 @@ const luckysheetSearchReplace = {
 
         const _locale = locale();
         const locale_findAndReplace = _locale.findAndReplace;
+
+        if(!Store.allowEdit){
+            tooltip.info(locale_findAndReplace.modeTip, "");
+            return;
+        }
 
         let searchText = $("#luckysheet-search-replace #searchInput input").val();
         if(searchText == "" || searchText == null){
@@ -685,17 +705,22 @@ const luckysheetSearchReplace = {
         let replaceText = $("#luckysheet-search-replace #replaceInput input").val();
 
         let d = editor.deepCopyFlowData(Store.flowdata);
-
+        let replaceCount = 0;
         if(wordCheck){
             for(let i = 0; i < searchIndexArr.length; i++){
                 let r = searchIndexArr[i].r;
                 let c = searchIndexArr[i].c;
+
+                if(!checkProtectionLocked(r, c, Store.currentSheetIndex, false)){
+                    continue;
+                }
 
                 let v = replaceText;
 
                 setcellvalue(r, c, d, v);
 
                 range.push({ "row": [r, r], "column": [c, c] });
+                replaceCount++;
             }
         }
         else{
@@ -711,11 +736,16 @@ const luckysheetSearchReplace = {
                 let r = searchIndexArr[i].r;
                 let c = searchIndexArr[i].c;
 
+                if(!checkProtectionLocked(r, c, Store.currentSheetIndex, false)){
+                    continue;
+                }
+
                 let v = valueShowEs(r, c, d).toString().replace(reg, replaceText);
 
                 setcellvalue(r, c, d, v);
 
                 range.push({ "row": [r, r], "column": [c, c] });
+                replaceCount++;
             }
         }
 
@@ -729,7 +759,7 @@ const luckysheetSearchReplace = {
         selectHightlightShow();
 
         let succeedInfo = replaceHtml(locale_findAndReplace.successTip, { 
-            "xlength": searchIndexArr.length
+            "xlength": replaceCount
         });
         if(isEditMode()){
             alert(succeedInfo);

@@ -5,7 +5,9 @@ import tooltip from './tooltip';
 import editor from './editor';
 import { rowlenByRange } from './getRowlen';
 import { jfrefreshgrid } from './refresh';
+import {checkProtectionAuthorityNormal} from '../controllers/protection';
 import Store from '../store';
+import numeral from 'numeral';
 
 //数据排序方法
 function orderbydata(data, index, isAsc) {
@@ -180,6 +182,9 @@ function orderbydata1D(data, isAsc) {
 
 //排序选区数据
 function sortSelection(isAsc) {
+    if(!checkProtectionAuthorityNormal(Store.currentSheetIndex, "sort")){
+        return;
+    }
     if(Store.luckysheet_select_save.length > 1){
         if(isEditMode()){
             alert("不能对多重选择区域执行此操作，请选择单个区域，然后再试");
@@ -267,19 +272,25 @@ function sortSelection(isAsc) {
         }
     }
 
+    let allParam = {};
     if(Store.config["rowlen"] != null){
         let cfg = $.extend(true, {}, Store.config);
         cfg = rowlenByRange(d, str, edr, cfg);
 
-        jfrefreshgrid(d, [{ "row": [str, edr], "column": [c1, c2] }], cfg, null, true);
+        allParam = {
+            "cfg": cfg,
+            "RowlChange": true
+        }
     }
-    else{
-        jfrefreshgrid(d, [{ "row": [str, edr], "column": [c1, c2] }]);
-    }
+
+    jfrefreshgrid(d, [{ "row": [str, edr], "column": [c1, c2] }], allParam);
 }
 
 //排序一列数据
 function sortColumnSeletion(colIndex, isAsc) {
+    if(!checkProtectionAuthorityNormal(Store.currentSheetIndex, "sort")){
+        return;
+    }
     if(isAsc == null){
         isAsc = true;
     }
@@ -352,15 +363,18 @@ function sortColumnSeletion(colIndex, isAsc) {
         }
     }
 
+    let allParam = {};
     if(Store.config["rowlen"] != null){
         let cfg = $.extend(true, {}, Store.config);
         cfg = rowlenByRange(d, str, edr, cfg);
 
-        jfrefreshgrid(d, [{ "row": [str, edr], "column": [c1, c2] }], cfg, null, true);
+        allParam = {
+            "cfg": cfg,
+            "RowlChange": true
+        }
     }
-    else{
-        jfrefreshgrid(d, [{ "row": [str, edr], "column": [c1, c2] }]);
-    }
+
+    jfrefreshgrid(d, [{ "row": [str, edr], "column": [c1, c2] }], allParam);
 }
 
 export {

@@ -1,10 +1,10 @@
-const sheetPivotTable = {
+window.sheetPivotTable = {
 	"name": "PivotTable",
 	"color": "",
 	"config": {},
 	"index": "7",
 	"chart": [],
-	"status": "0",
+	"status": 0,
 	"order": "7",
 	"column": 18,
 	"row": 36,
@@ -186,4 +186,4 @@ const sheetPivotTable = {
 	}
 }
 
-export default sheetPivotTable;
+// export default sheetPivotTable;

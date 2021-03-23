@@ -1,4 +1,4 @@
-const sheetComment = {
+window.sheetComment = {
 	"name": "Comment",
 	"color": "",
 	"config": {
@@ -8,7 +8,7 @@ const sheetComment = {
 	},
 	"index": "5",
 	"chart": [],
-	"status": "0",
+	"status": 0,
 	"order": "5",
 	"column": 18,
 	"row": 36,
@@ -64,4 +64,4 @@ const sheetComment = {
 	"scrollTop": 0
 }
 
-export default sheetComment;
+// export default sheetComment;

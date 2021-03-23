@@ -7,14 +7,24 @@ import conditionformat from '../controllers/conditionformat';
 import luckysheetFreezen from '../controllers/freezen';
 import { selectHightlightShow } from '../controllers/select';
 import { luckysheet_searcharray } from '../controllers/sheetSearch';
+import {checkProtectionAuthorityNormal,checkProtectionNotEnable} from '../controllers/protection';
 import { getSheetIndex } from '../methods/get';
 import Store from '../store';
 
 //增加行列
-function luckysheetextendtable(type, index, value, direction, order) {
-    let curOrder = order || getSheetIndex(Store.currentSheetIndex);
+function luckysheetextendtable(type, index, value, direction, sheetIndex) {
+    sheetIndex = sheetIndex || Store.currentSheetIndex;
+
+    if(type=='row' && !checkProtectionAuthorityNormal(sheetIndex, "insertRows")){
+        return;
+    }
+    else if(type=='column' && !checkProtectionAuthorityNormal(sheetIndex, "insertColumns")){
+        return;
+    }
+
+    let curOrder = getSheetIndex(sheetIndex);
     let file = Store.luckysheetfile[curOrder];
-    let d = file.data;
+    let d = $.extend(true, [], file.data);
 
     value = Math.floor(value);
     let cfg = $.extend(true, {}, file.config);
@@ -255,7 +265,9 @@ function luckysheetextendtable(type, index, value, direction, order) {
     }
 
     if(newFilterObj != null && newFilterObj.filter != null){
-        cfg["rowhidden"] = {};
+        if(cfg["rowhidden"] == null){
+            cfg["rowhidden"] = {};
+        }
 
         for(let k in newFilterObj.filter){
             let f_rowhidden = newFilterObj.filter[k].rowhidden;
@@ -264,9 +276,6 @@ function luckysheetextendtable(type, index, value, direction, order) {
                 cfg["rowhidden"][n] = 0;
             }
         }
-    }
-    else{
-        delete cfg["rowhidden"];
     }
 
     //条件格式配置变动
@@ -418,7 +427,7 @@ function luckysheetextendtable(type, index, value, direction, order) {
             freezen_row_st += value;
         }
 
-        let freezen_top = Store.visibledatarow[freezen_row_st] - 2 - freezen_scrollTop + Store.columeHeaderHeight;
+        let freezen_top = Store.visibledatarow[freezen_row_st] - 2 - freezen_scrollTop + Store.columnHeaderHeight;
 
         newFreezen.freezenhorizontaldata = [
             Store.visibledatarow[freezen_row_st], 
@@ -457,6 +466,110 @@ function luckysheetextendtable(type, index, value, direction, order) {
         newFreezen.freezenverticaldata = luckysheetFreezen.freezenverticaldata;
     }
 
+    //数据验证配置变动
+    let dataVerification = file.dataVerification;
+    let newDataVerification = {};
+    if(dataVerification != null){
+        for(let key in dataVerification){
+            let r = Number(key.split('_')[0]),
+                c = Number(key.split('_')[1]);
+            let item = dataVerification[key];
+            
+            if(type == "row"){
+                if(index < r){
+                    newDataVerification[(r + value) + "_" + c] = item;
+                }
+                else if(index == r){
+                    if(direction == "lefttop"){
+                        newDataVerification[(r + value) + "_" + c] = item;
+
+                        for(let i = 0; i < value; i++){
+                            newDataVerification[(r + i) + "_" + c] = item;
+                        }
+                    }
+                    else{
+                        newDataVerification[r + "_" + c] = item;
+
+                        for(let i = 0; i < value; i++){
+                            newDataVerification[(r + i + 1) + "_" + c] = item;
+                        }
+                    }
+                }
+                else{
+                    newDataVerification[r + "_" + c] = item;
+                }
+            }
+            else if(type == "column"){
+                if(index < c){
+                    newDataVerification[r + "_" + (c + value)] = item;
+                }
+                else if(index == c){
+                    if(direction == "lefttop"){
+                        newDataVerification[r + "_" + (c + value)] = item;
+
+                        for(let i = 0; i < value; i++){
+                            newDataVerification[r + "_" + (c + i)] = item;
+                        }
+                    }
+                    else{
+                        newDataVerification[r + "_" + c] = item;
+
+                        for(let i = 0; i < value; i++){
+                            newDataVerification[r + "_" + (c + i + 1)] = item;
+                        }
+                    }
+                }
+                else{
+                    newDataVerification[r + "_" + c] = item;
+                }
+            }
+        }
+    }
+
+    //超链接配置变动
+    let hyperlink = file.hyperlink;
+    let newHyperlink = {};
+    if(hyperlink != null){
+        for(let key in hyperlink){
+            let r = Number(key.split('_')[0]),
+                c = Number(key.split('_')[1]);
+            let item = hyperlink[key];
+            
+            if(type == "row"){
+                if(index < r){
+                    newHyperlink[(r + value) + "_" + c] = item;
+                }
+                else if(index == r){
+                    if(direction == "lefttop"){
+                        newHyperlink[(r + value) + "_" + c] = item;
+                    }
+                    else{
+                        newHyperlink[r + "_" + c] = item;
+                    }
+                }
+                else{
+                    newHyperlink[r + "_" + c] = item;
+                }
+            }
+            else if(type == "column"){
+                if(index < c){
+                    newHyperlink[r + "_" + (c + value)] = item;
+                }
+                else if(index == c){
+                    if(direction == "lefttop"){
+                        newHyperlink[r + "_" + (c + value)] = item;
+                    }
+                    else{
+                        newHyperlink[r + "_" + c] = item;
+                    }
+                }
+                else{
+                    newHyperlink[r + "_" + c] = item;
+                }
+            }
+        }
+    }
+
     let type1;
     if (type == "row") {
         type1 = "r";
@@ -487,10 +600,39 @@ function luckysheetextendtable(type, index, value, direction, order) {
             cfg["rowlen"] = rowlen_new;
         }
 
+        //隐藏行配置变动
+        if(cfg["rowhidden"] != null){
+            let rowhidden_new = {};
+
+            for(let r in cfg["rowhidden"]){
+                r = parseFloat(r);
+
+                if(r < index){
+                    rowhidden_new[r] = cfg["rowhidden"][r];
+                }
+                else if(r == index){
+                    if(direction == "lefttop"){
+                        rowhidden_new[(r + value)] = cfg["rowhidden"][r];
+                    }
+                    else if(direction == "rightbottom"){
+                        rowhidden_new[r] = cfg["rowhidden"][r];
+                    }
+                }
+                else{
+                    rowhidden_new[(r + value)] = cfg["rowhidden"][r];
+                }
+            }
+
+            cfg["rowhidden"] = rowhidden_new;
+        }
+
         //空行模板
-        let row = [];
+        let row = [],
+            curRow = [...d][index]
         for(let c = 0; c < d[0].length; c++){
-            row.push(null);
+            let cell = curRow[c],
+            templateCell = cell ?  {...cell, v: '', m: ''} : Store.defaultCell;
+            row.push(templateCell);
         }
 
         //边框
@@ -574,14 +716,14 @@ function luckysheetextendtable(type, index, value, direction, order) {
 
         if(direction == "lefttop"){
             if(index == 0){
-                eval('d.unshift(' + arr.join(",") + ')');
+                new Function("d","return " + 'd.unshift(' + arr.join(",") + ')')(d);
             }
             else{
-                eval('d.splice(' + index + ', 0, ' + arr.join(",") + ')');
+                new Function("d","return " + 'd.splice(' + index + ', 0, ' + arr.join(",") + ')')(d);
             }
         }
-        else{
-            eval('d.splice(' + (index + 1) + ', 0, ' + arr.join(",") + ')');    
+        else{ 
+            new Function("d","return " + 'd.splice(' + (index + 1) + ', 0, ' + arr.join(",") + ')')(d); 
         }
     }
     else {
@@ -613,10 +755,39 @@ function luckysheetextendtable(type, index, value, direction, order) {
             cfg["columnlen"] = columnlen_new;
         }
 
+        //隐藏列配置变动
+        if(cfg["colhidden"] != null){
+            let colhidden_new = {};
+
+            for(let c in cfg["colhidden"]){
+                c = parseFloat(c);
+                
+                if(c < index){
+                    colhidden_new[c] = cfg["colhidden"][c];
+                }
+                else if(c == index){
+                    if(direction == "lefttop"){
+                        colhidden_new[(c + value)] = cfg["colhidden"][c];
+                    }
+                    else if(direction == "rightbottom"){
+                        colhidden_new[c] = cfg["colhidden"][c];
+                    }
+                }
+                else{
+                    colhidden_new[(c + value)] = cfg["colhidden"][c];
+                }
+            }
+
+            cfg["colhidden"] = colhidden_new;
+        }
+
         //空列模板
-        let col = [];
+        let col = [],
+            curd= [...d];
         for(let r = 0; r < d.length; r++){
-            col.push(null);
+            let cell = curd[r][index],
+            templateCell = cell ?  {...cell, v: '', m: ''} : Store.defaultCell;
+            col.push(templateCell);
         }
 
         //边框
@@ -713,7 +884,7 @@ function luckysheetextendtable(type, index, value, direction, order) {
     }
 
     // 修改当前sheet页时刷新
-    if (curOrder == Store.currentSheetIndex) {
+    if (file.index == Store.currentSheetIndex) {
         jfrefreshgrid_adRC(
             d, 
             cfg, 
@@ -723,8 +894,22 @@ function luckysheetextendtable(type, index, value, direction, order) {
             newFilterObj, 
             newCFarr, 
             newAFarr, 
-            newFreezen
+            newFreezen,
+            newDataVerification,
+            newHyperlink
         );
+
+    }
+    else{
+        file.data = d;
+        file.config = cfg;
+        file.calcChain = newCalcChain;
+        file.filter = newFilterObj.filter;
+        file.filter_select = newFilterObj.filter_select;
+        file.luckysheet_conditionformat_save = newCFarr;
+        file.luckysheet_alternateformat_save = newAFarr;
+        file.dataVerification = newDataVerification;
+        file.hyperlink = newHyperlink;
     }
     
     let range = null;
@@ -746,7 +931,7 @@ function luckysheetextendtable(type, index, value, direction, order) {
     }
     
     file.luckysheet_select_save = range;
-    if (curOrder == Store.currentSheetIndex) {
+    if (file.index == Store.currentSheetIndex) {
         Store.luckysheet_select_save = range;
         selectHightlightShow();
     }
@@ -813,10 +998,52 @@ function luckysheetextendData(rowlen, newData) {
 }
 
 //删除行列
-function luckysheetdeletetable(type, st, ed, order) {
-    let curOrder = order || getSheetIndex(Store.currentSheetIndex);
+function luckysheetdeletetable(type, st, ed, sheetIndex) {
+
+    sheetIndex = sheetIndex || Store.currentSheetIndex;
+    
+    if(type=='row' && !checkProtectionAuthorityNormal(sheetIndex, "deleteRows")){
+        return;
+    }
+    else if(type=='column' && !checkProtectionAuthorityNormal(sheetIndex, "deleteColumns")){
+        return;
+    }
+
+    let curOrder = getSheetIndex(sheetIndex);
+
     let file = Store.luckysheetfile[curOrder];
-    let d = file.data;
+    let d = $.extend(true, [], file.data);
+
+    if(st < 0){
+        st = 0;
+    }
+
+    if(ed < 0){
+        ed = 0;
+    }
+
+    if(type == "row"){
+        if(st > d.length - 1){
+            st = d.length - 1;
+        }
+
+        if(ed > d.length - 1){
+            ed = d.length - 1;
+        }
+    }
+    else{
+        if(st > d[0].length - 1){
+            st = d[0].length - 1;
+        }
+
+        if(ed > d[0].length - 1){
+            ed = d[0].length - 1;
+        }
+    }
+
+    if(st > ed){
+        return
+    }
 
     let slen = ed - st + 1;
     let cfg = $.extend(true, {}, file.config);
@@ -1038,7 +1265,9 @@ function luckysheetdeletetable(type, st, ed, order) {
     }
 
     if(newFilterObj != null && newFilterObj.filter != null){
-        cfg["rowhidden"] = {};
+        if(cfg["rowhidden"] == null){
+            cfg["rowhidden"] = {};
+        }
 
         for(let k in newFilterObj.filter){
             let f_rowhidden = newFilterObj.filter[k].rowhidden;
@@ -1047,9 +1276,6 @@ function luckysheetdeletetable(type, st, ed, order) {
                 cfg["rowhidden"][n] = 0;
             }
         }
-    }
-    else{
-        delete cfg["rowhidden"];
     }
 
     //条件格式配置变动
@@ -1230,7 +1456,7 @@ function luckysheetdeletetable(type, st, ed, order) {
             freezen_row_st = freezen_st;
         }
 
-        let freezen_top = Store.visibledatarow[freezen_row_st] - 2 - freezen_scrollTop + Store.columeHeaderHeight;
+        let freezen_top = Store.visibledatarow[freezen_row_st] - 2 - freezen_scrollTop + Store.columnHeaderHeight;
 
         newFreezen.freezenhorizontaldata = [
             Store.visibledatarow[freezen_row_st], 
@@ -1280,6 +1506,62 @@ function luckysheetdeletetable(type, st, ed, order) {
         newFreezen.freezenverticaldata = luckysheetFreezen.freezenverticaldata;
     }
 
+    //数据验证配置变动
+    let dataVerification = file.dataVerification;
+    let newDataVerification = {};
+    if(dataVerification != null){
+        for(let key in dataVerification){
+            let r = Number(key.split('_')[0]),
+                c = Number(key.split('_')[1]);
+            let item = dataVerification[key];
+            
+            if(type == "row"){
+                if(r < st){
+                    newDataVerification[r + "_" + c] = item;
+                }
+                else if(r > ed){
+                    newDataVerification[(r - slen) + "_" + c] = item;
+                }
+            }
+            else if(type == "column"){
+                if(c < st){
+                    newDataVerification[r + "_" + c] = item;
+                }
+                else if(c > ed){
+                    newDataVerification[r + "_" + (c - slen)] = item;
+                }
+            }
+        }
+    }
+
+    //超链接配置变动
+    let hyperlink = file.hyperlink;
+    let newHyperlink = {};
+    if(hyperlink != null){
+        for(let key in hyperlink){
+            let r = Number(key.split('_')[0]),
+                c = Number(key.split('_')[1]);
+            let item = hyperlink[key];
+            
+            if(type == "row"){
+                if(r < st){
+                    newHyperlink[r + "_" + c] = item;
+                }
+                else if(r > ed){
+                    newHyperlink[(r - slen) + "_" + c] = item;
+                }
+            }
+            else if(type == "column"){
+                if(c < st){
+                    newHyperlink[r + "_" + c] = item;
+                }
+                else if(c > ed){
+                    newHyperlink[r + "_" + (c - slen)] = item;
+                }
+            }
+        }
+    }
+
     //主逻辑
     let type1;
     if (type == "row") {
@@ -1301,6 +1583,23 @@ function luckysheetdeletetable(type, st, ed, order) {
         }
 
         cfg["rowlen"] = rowlen_new;
+
+        //隐藏行配置变动
+        if(cfg["rowhidden"] == null){
+            cfg["rowhidden"] = {};
+        }
+
+        let rowhidden_new = {};
+        for(let r in cfg["rowhidden"]){
+            if(r < st){
+                rowhidden_new[r] = cfg["rowhidden"][r];
+            }
+            else if(r > ed){
+                rowhidden_new[r - slen] = cfg["rowhidden"][r];
+            }
+        }
+
+        cfg["rowhidden"] = rowhidden_new;
 
         //边框配置变动
         if(cfg["borderInfo"] && cfg["borderInfo"].length > 0){
@@ -1361,17 +1660,31 @@ function luckysheetdeletetable(type, st, ed, order) {
             cfg["borderInfo"] = borderInfo;
         }
 
+        // 备注：该处理方式会在删除多行的时候会存在bug
+        // 说明：删除多行后，会把同一个row空数组(引用类型)添加成为data多行的数据源，导致设置这些行数据时产生错误。
+        //空白行模板
+        // let row = [];
+        // for (let c = 0; c < d[0].length; c++) {
+        //     row.push(null);
+        // }
+
+        // //删除选中行
+        // d.splice(st, slen);
+
+        // //删除多少行，增加多少行空白行                
+        // for (let r = 0; r < slen; r++) {
+        //     d.push(row);
+        // }
+
         //删除选中行
         d.splice(st, slen);
 
-        //空白行模板
-        let row = [];
-        for (let c = 0; c < d[0].length; c++) {
-            row.push(null);
-        }
-
         //删除多少行，增加多少行空白行                
         for (let r = 0; r < slen; r++) {
+            let row = [];
+            for (let c = 0; c < d[0].length; c++) {
+                row.push(null);
+            }
             d.push(row);
         }
     }
@@ -1394,6 +1707,23 @@ function luckysheetdeletetable(type, st, ed, order) {
         }
 
         cfg["columnlen"] = columnlen_new;
+
+        //隐藏列配置变动
+        if(cfg["colhidden"] == null){
+            cfg["colhidden"] = {};
+        }
+
+        let colhidden_new = {};
+        for(let c in cfg["colhidden"]){
+            if(c < st){
+                colhidden_new[c] = cfg["colhidden"][c];
+            }
+            else if(c > ed){
+                colhidden_new[c - slen] = cfg["colhidden"][c];
+            }
+        }
+
+        cfg["colhidden"] = colhidden_new;
 
         //边框配置变动
         if(cfg["borderInfo"] && cfg["borderInfo"].length > 0){
@@ -1471,7 +1801,7 @@ function luckysheetdeletetable(type, st, ed, order) {
     }
 
     // 修改当前sheet页时刷新
-    if (curOrder == Store.currentSheetIndex) {
+    if (file.index == Store.currentSheetIndex) {
         jfrefreshgrid_adRC(
             d, 
             cfg, 
@@ -1481,16 +1811,35 @@ function luckysheetdeletetable(type, st, ed, order) {
             newFilterObj, 
             newCFarr, 
             newAFarr, 
-            newFreezen
+            newFreezen,
+            newDataVerification,
+            newHyperlink
         );
+    }
+    else{
+        file.data = d;
+        file.config = cfg;
+        file.calcChain = newCalcChain;
+        file.filter = newFilterObj.filter;
+        file.filter_select = newFilterObj.filter_select;
+        file.luckysheet_conditionformat_save = newCFarr;
+        file.luckysheet_alternateformat_save = newAFarr;
+        file.dataVerification = newDataVerification;
+        file.hyperlink = newHyperlink;
     }
 }
 
 //删除单元格
-function luckysheetDeleteCell(type, str, edr, stc, edc, order) {
-    let d = editor.deepCopyFlowData(Store.flowdata);
-    let curOrder = order || getSheetIndex(Store.currentSheetIndex);
+function luckysheetDeleteCell(type, str, edr, stc, edc, sheetIndex) {
+    sheetIndex = sheetIndex || Store.currentSheetIndex;
+    if(!checkProtectionNotEnable(sheetIndex)){
+        return;
+    }
+
+    let curOrder = getSheetIndex(sheetIndex);
     let file = Store.luckysheetfile[curOrder];
+
+    let d = $.extend(true, [], file.data);
 
     let rlen = edr - str + 1;
     let clen = edc - stc + 1;
@@ -1517,6 +1866,13 @@ function luckysheetDeleteCell(type, str, edr, stc, edc, order) {
             else if(str <= r && edr >= r + rs - 1 && edc < c){
                 merge_new[r + "_" + (c - clen)] = { "r": r, "c": c - clen, "rs": rs, "cs": cs };
             }
+            else{
+                for(let r_i = r; r_i <= r + rs - 1; r_i++){
+                    for(let c_i = c; c_i <= c + cs - 1; c_i++){
+                        delete d[r_i][c_i].mc;
+                    }
+                }
+            }
         }
         else if(type == "moveUp"){
             if(stc > c + cs - 1 || edc < c || str > r + rs - 1){
@@ -1524,6 +1880,13 @@ function luckysheetDeleteCell(type, str, edr, stc, edc, order) {
             }
             else if(stc <= c && edc >= c + cs - 1 && edr < r){
                 merge_new[(r - rlen) + "_" + c] = { "r": r - rlen, "c": c, "rs": rs, "cs": cs };
+            }
+            else{
+                for(let r_i = r; r_i <= r + rs - 1; r_i++){
+                    for(let c_i = c; c_i <= c + cs - 1; c_i++){
+                        delete d[r_i][c_i].mc;
+                    }
+                }
             }
         }
     }
@@ -1783,7 +2146,9 @@ function luckysheetDeleteCell(type, str, edr, stc, edc, order) {
     }
 
     if(newFilterObj != null && newFilterObj.filter != null){
-        cfg["rowhidden"] = {};
+        if(cfg["rowhidden"] == null){
+            cfg["rowhidden"] = {};
+        }
 
         for(let k in newFilterObj.filter){
             let f_rowhidden = newFilterObj.filter[k].rowhidden;
@@ -1792,9 +2157,6 @@ function luckysheetDeleteCell(type, str, edr, stc, edc, order) {
                 cfg["rowhidden"][n] = 0;
             }
         }
-    }
-    else{
-        delete cfg["rowhidden"];
     }
 
     //条件格式配置变动
@@ -1810,19 +2172,9 @@ function luckysheetDeleteCell(type, str, edr, stc, edc, order) {
                     CFr2 = cf_range[j].row[1],
                     CFc1 = cf_range[j].column[0],
                     CFc2 = cf_range[j].column[1];
-
-                if(!(str > CFr2 || edr < CFr1) || !(stc > CFc2 || edc < CFc1)){
-                    let range = conditionformat.CFSplitRange(
-                        cf_range[j], 
-                        { "row": [str, edr], "column": [stc, edc] }, 
-                        { "row": [str, edr], "column": [stc, edc] }, 
-                        "restPart"
-                    );
-
-                    cf_new_range.concat(range);
-                }
-                else{
-                    cf_new_range.push(cf_range[j]);
+                
+                if(!(str <= CFr1 && edr >= CFr2 && stc <= CFc1 && edc >= CFc2)){
+                    cf_new_range = getMoveRange(type, str, edr, stc, edc, CFr1, CFr2, CFc1, CFc2, rlen, clen);
                 }
             }
 
@@ -1831,6 +2183,66 @@ function luckysheetDeleteCell(type, str, edr, stc, edc, order) {
                 cf.cellrange = cf_new_range;
 
                 newCFarr.push(cf);
+            }
+        }
+    }
+
+    //数据验证配置变动
+    let dataVerification = file.dataVerification;
+    let newDataVerification = {};
+    if(dataVerification != null){
+        for(let key in dataVerification){
+            let r = Number(key.split('_')[0]),
+                c = Number(key.split('_')[1]);
+            let item = dataVerification[key];
+
+            if(r < str || r > edr || c < stc || c > edc){
+                if(type == "moveLeft"){
+                    if(c > edc && r >= str && r <= edr){
+                        newDataVerification[r + "_" + (c - clen)] = item;
+                    }
+                    else{
+                        newDataVerification[r + "_" + c] = item;
+                    }
+                }
+                else if(type == "moveUp"){
+                    if(r > edr && c >= stc && c <= edc){
+                        newDataVerification[(r - rlen) + "_" + c] = item;
+                    }
+                    else{
+                        newDataVerification[r + "_" + c] = item;
+                    }
+                }
+            }
+        }
+    }
+
+    //超链接配置变动
+    let hyperlink = file.hyperlink;
+    let newHyperlink = {};
+    if(hyperlink != null){
+        for(let key in hyperlink){
+            let r = Number(key.split('_')[0]),
+                c = Number(key.split('_')[1]);
+            let item = hyperlink[key];
+
+            if(r < str || r > edr || c < stc || c > edc){
+                if(type == "moveLeft"){
+                    if(c > edc && r >= str && r <= edr){
+                        newHyperlink[r + "_" + (c - clen)] = item;
+                    }
+                    else{
+                        newHyperlink[r + "_" + c] = item;
+                    }
+                }
+                else if(type == "moveUp"){
+                    if(r > edr && c >= stc && c <= edc){
+                        newHyperlink[(r - rlen) + "_" + c] = item;
+                    }
+                    else{
+                        newHyperlink[r + "_" + c] = item;
+                    }
+                }
             }
         }
     }
@@ -1853,18 +2265,8 @@ function luckysheetDeleteCell(type, str, edr, stc, edc, order) {
                         bd_c1 = borderRange[j].column[0],
                         bd_c2 = borderRange[j].column[1];
 
-                    if(!(str > bd_r2 || edr < bd_r1) || !(stc > bd_c2 || edc < bd_c1)){
-                        let range = conditionformat.CFSplitRange(
-                            borderRange[j], 
-                            { "row": [str, edr], "column": [stc, edc] }, 
-                            { "row": [str, edr], "column": [stc, edc] }, 
-                            "restPart"
-                        );
-    
-                        emptyRange.concat(range);
-                    }
-                    else{
-                        emptyRange.push(borderRange[j]);
+                    if(!(str <= bd_r1 && edr >= bd_r2 && stc <= bd_c1 && edc >= bd_c2)){
+                        emptyRange = getMoveRange(type, str, edr, stc, edc, bd_r1, bd_r2, bd_c1, bd_c2, rlen, clen);
                     }
                 }
 
@@ -1884,20 +2286,20 @@ function luckysheetDeleteCell(type, str, edr, stc, edc, order) {
                 let row_index = cfg["borderInfo"][i].value.row_index;
                 let col_index = cfg["borderInfo"][i].value.col_index;
 
-                if(row_index < str || col_index < stc){
-                    borderInfo.push(cfg["borderInfo"][i]);
-                }
-                else if(row_index > edr || col_index > edc){
-                    if(row_index > edr){
-                        row_index -= rlen;
-                        cfg["borderInfo"][i].value.row_index = row_index;
+                if(row_index < str || row_index > edr || col_index < stc || col_index > edc){
+                    if(type == 'moveLeft'){
+                        if(col_index > edc && row_index >= str && row_index <= edr){
+                            col_index -= clen;
+                            cfg["borderInfo"][i].value.col_index = col_index;
+                        }
                     }
-
-                    if(col_index > edc){
-                        col_index -= clen;
-                        cfg["borderInfo"][i].value.col_index = col_index;
+                    else if(type == 'moveUp'){
+                        if(row_index > edr && col_index >= stc && col_index <= edc){
+                            row_index -= rlen;
+                            cfg["borderInfo"][i].value.row_index = row_index;
+                        }
                     }
-
+    
                     borderInfo.push(cfg["borderInfo"][i]);
                 }
             }
@@ -1948,14 +2350,337 @@ function luckysheetDeleteCell(type, str, edr, stc, edc, order) {
         }
     }
 
-    jfrefreshgrid_deleteCell(
-        d,
-        cfg,
-        { type: type, 'str': str, 'edr': edr, 'stc': stc, 'edc': edc },
-        newCalcChain,
-        newFilterObj,
-        newCFarr
-    );
+    if(file.index == Store.currentSheetIndex){
+        jfrefreshgrid_deleteCell(
+            d,
+            cfg,
+            { type: type, 'str': str, 'edr': edr, 'stc': stc, 'edc': edc },
+            newCalcChain,
+            newFilterObj,
+            newCFarr,
+            newDataVerification,
+            newHyperlink
+        );
+    }
+    else{
+        file.data = d;
+        file.config = cfg;
+        file.calcChain = newCalcChain;
+        file.filter = newFilterObj.filter;
+        file.filter_select = newFilterObj.filter_select;
+        file.luckysheet_conditionformat_save = newCFarr;
+        file.dataVerification = newDataVerification;
+        file.hyperlink = newHyperlink;
+    }
+}
+
+function getMoveRange(type, str, edr, stc, edc, r1, r2, c1, c2, rlen, clen) {
+    let newRange = [];
+
+    if(type == "moveLeft"){
+        if(str > r2 || edr < r1 || stc > c2){
+            newRange.push({
+                "row": [r1, r2],
+                "column": [c1, c2]
+            });
+        }
+        else if(edc < c1){
+            if(str <= r1 && edr >= r2){
+                newRange.push({
+                    "row": [r1, r2],
+                    "column": [c1 - clen, c2 - clen]
+                });
+            }
+            else if(str > r1 && edr < r2){
+                let range= [
+                    { "row": [r1, str - 1], "column": [c1, c2] },
+                    { "row": [edr + 1, r2], "column": [c1, c2] },
+                    { "row": [str, edr], "column": [c1 - clen, c2 - clen] }
+                ];
+                newRange = newRange.concat(range);
+            }
+            else if(str > r1){
+                let range= [
+                    { "row": [r1, str - 1], "column": [c1, c2] },
+                    { "row": [str, r2], "column": [c1 - clen, c2 - clen] },
+                ];
+                newRange = newRange.concat(range);
+            }
+            else if(edr < r2){
+                let range= [
+                    { "row": [r1, edr], "column": [c1 - clen, c2 - clen] },
+                    { "row": [edr + 1, r2], "column": [c1, c2] },
+                ];
+                newRange = newRange.concat(range);
+            }
+        }
+        else if(edc >= c1){
+            if(stc <= c1 && edc >= c2){
+                if(str > r1 && edr < r2){
+                    let range= [
+                        { "row": [r1, str - 1], "column": [c1, c2] },
+                        { "row": [edr + 1, r2], "column": [c1, c2] },
+                    ];
+                    newRange = newRange.concat(range);
+                }
+                else if(str > r1){
+                    let range= [
+                        { "row": [r1, str - 1], "column": [c1, c2] },
+                    ];
+                    newRange = newRange.concat(range);
+                }
+                else if(edr < r2){
+                    let range= [
+                        { "row": [edr + 1, r2], "column": [c1, c2] },
+                    ];
+                    newRange = newRange.concat(range);
+                }
+            }
+            else if(stc > c1 && edc < c2){
+                if(str <= r1 && edr >= r2){
+                    newRange.push({
+                        "row": [r1, r2],
+                        "column": [c1, c2 - clen]
+                    });
+                }
+                else if(str > r1 && edr < r2){
+                    let range= [
+                        { "row": [r1, str - 1], "column": [c1, c2] },
+                        { "row": [edr + 1, r2], "column": [c1, c2] },
+                        { "row": [str, edr], "column": [c1, c2 - clen] }
+                    ];
+                    newRange = newRange.concat(range);
+                }
+                else if(str > r1){
+                    let range= [
+                        { "row": [r1, str - 1], "column": [c1, c2] },
+                        { "row": [str, r2], "column": [c1, c2 - clen] },
+                    ];
+                    newRange = newRange.concat(range);
+                }
+                else if(edr < r2){
+                    let range= [
+                        { "row": [r1, edr], "column": [c1, c2 - clen] },
+                        { "row": [edr + 1, r2], "column": [c1, c2] },
+                    ];
+                    newRange = newRange.concat(range);
+                }
+            }
+            else if(stc > c1){
+                if(str <= r1 && edr >= r2){
+                    newRange.push({
+                        "row": [r1, r2],
+                        "column": [c1, stc - 1]
+                    });
+                }
+                else if(str > r1 && edr < r2){
+                    let range= [
+                        { "row": [r1, str - 1], "column": [c1, c2] },
+                        { "row": [edr + 1, r2], "column": [c1, c2] },
+                        { "row": [str, edr], "column": [c1, stc - 1] }
+                    ];
+                    newRange = newRange.concat(range);
+                }
+                else if(str > r1){
+                    let range= [
+                        { "row": [r1, str - 1], "column": [c1, c2] },
+                        { "row": [str, r2], "column": [c1, stc - 1] },
+                    ];
+                    newRange = newRange.concat(range);
+                }
+                else if(edr < r2){
+                    let range= [
+                        { "row": [r1, edr], "column": [c1, stc - 1] },
+                        { "row": [edr + 1, r2], "column": [c1, c2] },
+                    ];
+                    newRange = newRange.concat(range);
+                }
+            }
+            else if(edc < c2){
+                if(str <= r1 && edr >= r2){
+                    newRange.push({
+                        "row": [r1, r2],
+                        "column": [c1 - clen, c2 - clen]
+                    });
+                }
+                else if(str > r1 && edr < r2){
+                    let range= [
+                        { "row": [r1, str - 1], "column": [c1, c2] },
+                        { "row": [edr + 1, r2], "column": [c1, c2] },
+                        { "row": [str, edr], "column": [c1 - clen, c2 - clen] }
+                    ];
+                    newRange = newRange.concat(range);
+                }
+                else if(str > r1){
+                    let range= [
+                        { "row": [r1, str - 1], "column": [c1, c2] },
+                        { "row": [str, r2], "column": [c1 - clen, c2 - clen] },
+                    ];
+                    newRange = newRange.concat(range);
+                }
+                else if(edr < r2){
+                    let range= [
+                        { "row": [r1, edr], "column": [c1 - clen, c2 - clen] },
+                        { "row": [edr + 1, r2], "column": [c1, c2] },
+                    ];
+                    newRange = newRange.concat(range);
+                }
+            }
+        }
+    }
+    else if(type == "moveUp"){
+        if(stc > c2 || edc < c1 || str > r2){
+            newRange.push({
+                "row": [r1, r2],
+                "column": [c1, c2]
+            });
+        }
+        else if(edr < r1){
+            if(stc <= c1 && edc >= c2){
+                newRange.push({
+                    "row": [r1 - rlen, r2 - rlen],
+                    "column": [c1, c2]
+                });
+            }
+            else if(stc > c1 && edc < c2){
+                let range= [
+                    { "row": [r1, r2], "column": [c1, stc - 1] },
+                    { "row": [r1, r2], "column": [edc + 1, c2] },
+                    { "row": [r1 - rlen, r2 - rlen], "column": [stc, edc] }
+                ];
+                newRange = newRange.concat(range);
+            }
+            else if(stc > c1){
+                let range= [
+                    { "row": [r1, r2], "column": [c1, stc - 1] },
+                    { "row": [r1 - rlen, r2 - rlen], "column": [stc, c2] },
+                ];
+                newRange = newRange.concat(range);
+            }
+            else if(edc < c2){
+                let range= [
+                    { "row": [r1 - rlen, r2 - rlen], "column": [c1, edc] },
+                    { "row": [r1, r2], "column": [edc + 1, c2] },
+                ];
+                newRange = newRange.concat(range);
+            }
+        }
+        else if(edr >= r1){
+            if(str <= r1 && edr >= r2){
+                if(stc > c1 && edc < c2){
+                    let range= [
+                        { "row": [r1, r2], "column": [c1, stc - 1] },
+                        { "row": [r1, r2], "column": [edc + 1, c2] },
+                    ];
+                    newRange = newRange.concat(range);
+                }
+                else if(stc > c1){
+                    let range= [
+                        { "row": [r1, r2], "column": [c1, stc - 1] },
+                    ];
+                    newRange = newRange.concat(range);
+                }
+                else if(edc < c2){
+                    let range= [
+                        { "row": [r1, r2], "column": [edc + 1, c2] },
+                    ];
+                    newRange = newRange.concat(range);
+                }
+            }
+            else if(str > r1 && edr < r2){
+                if(stc <= c1 && edc >= c2){
+                    newRange.push({
+                        "row": [r1, r2 - rlen],
+                        "column": [c1, c2]
+                    });
+                }
+                else if(stc > c1 && edc < c2){
+                    let range= [
+                        { "row": [r1, r2], "column": [c1, stc - 1] },
+                        { "row": [r1, r2], "column": [edc + 1, c2] },
+                        { "row": [r1, r2 - rlen], "column": [stc, edc] }
+                    ];
+                    newRange = newRange.concat(range);
+                }
+                else if(stc > c1){
+                    let range= [
+                        { "row": [r1, r2], "column": [c1, stc - 1] },
+                        { "row": [r1, r2 - rlen], "column": [stc, c2] },
+                    ];
+                    newRange = newRange.concat(range);
+                }
+                else if(edc < c2){
+                    let range= [
+                        { "row": [r1, r2 - rlen], "column": [c1, edc] },
+                        { "row": [r1, r2], "column": [edc + 1, c2] },
+                    ];
+                    newRange = newRange.concat(range);
+                }
+            }
+            else if(str > r1){
+                if(stc <= c1 && edc >= c2){
+                    newRange.push({
+                        "row": [r1, str - 1],
+                        "column": [c1, c2]
+                    });
+                }
+                else if(stc > c1 && edc < c2){
+                    let range= [
+                        { "row": [r1, r2], "column": [c1, stc - 1] },
+                        { "row": [r1, r2], "column": [edc + 1, c2] },
+                        { "row": [r1, str - 1], "column": [stc, edc] }
+                    ];
+                    newRange = newRange.concat(range);
+                }
+                else if(stc > c1){
+                    let range= [
+                        { "row": [r1, r2], "column": [c1, stc - 1] },
+                        { "row": [r1, str - 1], "column": [stc, c2] },
+                    ];
+                    newRange = newRange.concat(range);
+                }
+                else if(edc < c2){
+                    let range= [
+                        { "row": [r1, str - 1], "column": [c1, edc] },
+                        { "row": [r1, r2], "column": [edc + 1, c2] },
+                    ];
+                    newRange = newRange.concat(range);
+                }
+            }
+            else if(edr < r2){
+                if(stc <= c1 && edc >= c2){
+                    newRange.push({
+                        "row": [r1 - rlen, r2 - rlen],
+                        "column": [c1, c2]
+                    });
+                }
+                else if(stc > c1 && edc < c2){
+                    let range= [
+                        { "row": [r1, r2], "column": [c1, stc - 1] },
+                        { "row": [r1, r2], "column": [edc + 1, c2] },
+                        { "row": [r1 - rlen, r2 - rlen], "column": [stc, edc] }
+                    ];
+                    newRange = newRange.concat(range);
+                }
+                else if(stc > c1){
+                    let range= [
+                        { "row": [r1, r2], "column": [c1, stc - 1] },
+                        { "row": [r1 - rlen, r2 - rlen], "column": [stc, c2] },
+                    ];
+                    newRange = newRange.concat(range);
+                }
+                else if(edc < c2){
+                    let range= [
+                        { "row": [r1 - rlen, r2 - rlen], "column": [c1, edc] },
+                        { "row": [r1, r2], "column": [edc + 1, c2] },
+                    ];
+                    newRange = newRange.concat(range);
+                }
+            }
+        }
+    }
+
+    return newRange;
 }
 
 export {

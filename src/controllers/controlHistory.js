@@ -4,6 +4,8 @@ import pivotTable from './pivotTable';
 import conditionformat from './conditionformat';
 import luckysheetPostil from './postil';
 import imageCtrl from './imageCtrl';
+import dataVerificationCtrl from './dataVerificationCtrl';
+import hyperlinkCtrl from './hyperlinkCtrl';
 import {zoomRefreshView,zoomNumberDomBind} from './zoom';
 import { createFilter, createFilterOptions, labelFilterOptionState } from './filter';
 import formula from '../global/formula';
@@ -21,6 +23,40 @@ import {
 } from '../global/refresh';
 import { getSheetIndex } from '../methods/get';
 import Store from '../store';
+import { selectHightlightShow } from './select';
+import method from '../global/method';
+
+function formulaHistoryHanddler(ctr, type="redo"){
+    if(ctr==null){
+        return;
+    }
+
+    let data = ctr.data;
+    if(type=="undo"){
+        data = ctr.curdata;
+    }
+    for(let s = 0; s < ctr.range.length; s++){
+        let st_r = ctr.range[s].row[0];
+        let ed_r = ctr.range[s].row[1];
+        let st_c = ctr.range[s].column[0];
+        let ed_c = ctr.range[s].column[1];
+
+        for(let r = st_r;r < ed_r + 1; r++){
+            for(let c = st_c; c < ed_c +1; c++){
+                if(r > data.length - 1){
+                    break;
+                }
+                // formula.execFunctionExist.push({ "r": r, "c": c, "i": ctr.sheetIndex });
+                if(data[r][c] == null || data[r][c].f==null || data[r][c].f==""){
+                    formula.delFunctionGroup(r,c,ctr.sheetIndex);
+                }
+                else if(data[r][c] != null && data[r][c].f!=null && data[r][c].f.length>0){
+                    formula.insertUpdateFunctionGroup(r,c,ctr.sheetIndex);
+                }
+            }
+        }
+    }
+}
 
 const controlHistory = {
     redo: function (e) {
@@ -36,29 +72,25 @@ const controlHistory = {
             sheetmanage.changeSheetExec(ctr.sheetIndex);
         }
 
+        // formula.execFunctionExist = [];
+
         if (ctr.type == "datachange") {
             //如果有单元格为null,则对应公式应该删除
-            for(let s = 0; s < ctr.range.length; s++){
-                let st_r = ctr.range[s].row[0];
-                let ed_r = ctr.range[s].row[1];
-                let st_c = ctr.range[s].column[0];
-                let ed_c = ctr.range[s].column[1];
-
-                for(let r = st_r;r < ed_r + 1; r++){
-                    for(let c = st_c; c < ed_c +1; c++){
-                        if(r > ctr.data.length - 1){
-                            break;
-                        }
-
-                        if(ctr.data[r][c] == null){
-                            formula.delFunctionGroup(r,c);
-                        }
-                    }
-                }
+            formulaHistoryHanddler(ctr);
+            
+            let allParam = {
+                "cfg": ctr.config,
+                "RowlChange": ctr.RowlChange,
+                "cdformat": ctr.cdformat,
+                "dataVerification": ctr.dataVerification,
+                "dynamicArray": ctr.dynamicArray
             }
-            formula.execFunctionGroup(null, null, null, null, ctr.data);//取之前的数据
+           // jfrefreshgrid(ctr.data, ctr.range, allParam);
 
-            jfrefreshgrid(ctr.data, ctr.range, ctr.config, ctr.cdformat, ctr.RowlChange);
+            /* ⚠️  这个🌶️  dataRange表示的才是数据更新的位置 */
+            jfrefreshgrid(ctr.data, ctr.dataRange, allParam);
+
+            // formula.execFunctionGroup(null, null, null, null, ctr.data);//取之前的数据
         }
         else if (ctr.type == "pasteCut") {
             let s = {
@@ -69,6 +101,8 @@ const controlHistory = {
                 "curConfig": ctr.source["config"],
                 "cdformat": ctr.source["curCdformat"],
                 "curCdformat": ctr.source["cdformat"],
+                "dataVerification": ctr.source["curDataVerification"],
+                "curDataVerification": ctr.source["dataVerification"],
                 "range": ctr.source["range"]
             }
             let t = {
@@ -79,29 +113,18 @@ const controlHistory = {
                 "curConfig": ctr.target["config"],
                 "cdformat": ctr.target["curCdformat"],
                 "curCdformat": ctr.target["cdformat"],
+                "dataVerification": ctr.target["curDataVerification"],
+                "curDataVerification": ctr.target["dataVerification"],
                 "range": ctr.target["range"]
             }
             jfrefreshgrid_pastcut(s, t, ctr.RowlChange);
         }
         else if (ctr.type == "rangechange") {
             //如果有单元格为null,则对应公式应该删除
-            for(let s = 0; s < ctr.range.length; s++){
-                let st_r = ctr.range[s].row[0];
-                let ed_r = ctr.range[s].row[1];
-                let st_c = ctr.range[s].column[0];
-                let ed_c = ctr.range[s].column[1];
-
-                for(let r = st_r;r < ed_r + 1; r++){
-                    for(let c = st_c; c < ed_c +1; c++){
-                        if(ctr.data[r][c] == null){
-                            formula.delFunctionGroup(r,c);
-                        }
-                    }
-                }
-            }
-            formula.execFunctionGroup(null, null, null, null, ctr.data);//取之前的数据
+            formulaHistoryHanddler(ctr);
             
             jfrefreshrange(ctr.data, ctr.range, ctr.cdformat);
+            // formula.execFunctionGroup(null, null, null, null, ctr.data);//取之前的数据
         }
         else if (ctr.type == "resize") {
             Store.config = ctr.config;
@@ -139,17 +162,50 @@ const controlHistory = {
                 ctrlValue.index = ctrlValue.index + 1;
             }
 
-            jfrefreshgrid_adRC(ctr.data, ctr.config, "delRC", ctrlValue, ctr.calc, ctr.filterObj, ctr.cf, ctr.af, ctr.freezen);
+            jfrefreshgrid_adRC(
+                ctr.data, 
+                ctr.config, 
+                "delRC", 
+                ctrlValue, 
+                ctr.calc, 
+                ctr.filterObj, 
+                ctr.cf, 
+                ctr.af, 
+                ctr.freezen,
+                ctr.dataVerification,
+                ctr.hyperlink
+            );
         }
         else if (ctr.type == "delRC") { //删除行列撤销操作
             let ctrlValue = $.extend(true, {}, ctr.ctrlValue);
             ctrlValue.restore = true;
             ctrlValue.direction = "lefttop";
 
-            jfrefreshgrid_adRC(ctr.data, ctr.config, "addRC", ctrlValue, ctr.calc, ctr.filterObj, ctr.cf, ctr.af, ctr.freezen);
+            jfrefreshgrid_adRC(
+                ctr.data, 
+                ctr.config, 
+                "addRC", 
+                ctrlValue, 
+                ctr.calc, 
+                ctr.filterObj, 
+                ctr.cf, 
+                ctr.af, 
+                ctr.freezen,
+                ctr.dataVerification,
+                ctr.hyperlink
+            );
         }
         else if (ctr.type == "deleteCell") { //删除单元格撤销操作
-            jfrefreshgrid_deleteCell(ctr.data, ctr.config, ctr.ctrl, ctr.calc, ctr.filterObj, ctr.cf);
+            jfrefreshgrid_deleteCell(
+                ctr.data, 
+                ctr.config, 
+                ctr.ctrl, 
+                ctr.calc, 
+                ctr.filterObj, 
+                ctr.cf,
+                ctr.dataVerification,
+                ctr.hyperlink
+            );
         }
         else if (ctr.type == "showHidRows") { // 隐藏、显示行 撤销操作
             //config
@@ -285,7 +341,20 @@ const controlHistory = {
             server.saveParam("all", ctr.sheetIndex, ctr.oldcolor, { "k": "color" });
         }
         else if (ctr.type == "mergeChange") {
-            jfrefreshgrid(ctr.data, ctr.range, ctr.config);
+            let allParam = {
+                "cfg": ctr.config,
+            }
+
+            jfrefreshgrid(ctr.data, ctr.range, allParam);
+        }
+        else if (ctr.type == "updateDataVerification"){
+            dataVerificationCtrl.ref(ctr.currentDataVerification, ctr.historyDataVerification, ctr.sheetIndex);
+        }
+        else if (ctr.type == "updateDataVerificationOfCheckbox"){
+            dataVerificationCtrl.refOfCheckbox(ctr.currentDataVerification, ctr.historyDataVerification, ctr.sheetIndex, ctr.data, ctr.range);
+        }
+        else if (ctr.type == "updateHyperlink"){
+            hyperlinkCtrl.ref(ctr.currentHyperlink, ctr.historyHyperlink, ctr.sheetIndex, ctr.data, ctr.range);
         }
         else if (ctr.type == "updateCF"){
             let historyRules = ctr["data"]["historyRules"];
@@ -357,7 +426,17 @@ const controlHistory = {
         }
         
         cleargridelement(e);
+        if (ctr.range) {
+            Store.luckysheet_select_save = ctr.range;
+            selectHightlightShow();
+        }
         Store.clearjfundo = true;
+
+        // 撤销的时候curdata 跟 data 数据要调换一下
+        let newCtr = {...ctr, ...{data: ctr.curdata, curdata: ctr.data}}
+        // 钩子函数
+        method.createHookFunction('updated', newCtr)
+        
     },
     undo: function () {
         if (Store.jfundo.length == 0) {
@@ -375,13 +454,24 @@ const controlHistory = {
         if (ctr.type == "datachange") {
             formula.execFunctionGroup();
 
-            jfrefreshgrid(ctr.curdata, ctr.range, ctr.curConfig, ctr.curCdformat, ctr.RowlChange);
+            let allParam = {
+                "cfg": ctr.curConfig,
+                "RowlChange": ctr.RowlChange,
+                "cdformat": ctr.curCdformat,
+                "dataVerification": ctr.curDataVerification,
+                "dynamicArray": ctr.curDynamicArray
+            }
+
+            formulaHistoryHanddler(ctr, "undo");
+
+            jfrefreshgrid(ctr.curdata, ctr.range, allParam);
         }
         else if (ctr.type == "pasteCut") {
             jfrefreshgrid_pastcut(ctr.source, ctr.target, ctr.RowlChange);
         }
         else if (ctr.type == "rangechange") {
-            formula.execFunctionGroup();
+            // formula.execFunctionGroup();
+            formulaHistoryHanddler(ctr, "undo");
             jfrefreshrange(ctr.curdata, ctr.range, ctr.curCdformat);
         }
         else if (ctr.type == "resize") {
@@ -415,13 +505,46 @@ const controlHistory = {
             jfrefreshgridall(ctr.curdata[0].length, ctr.curdata.length, ctr.curdata, ctr.curconfig, ctr.currange, ctr.ctrlType, ctr.ctrlValue);
         }
         else if (ctr.type == "addRC") { //增加行列重做操作
-            jfrefreshgrid_adRC(ctr.curData, ctr.curConfig, "addRC", ctr.ctrlValue, ctr.curCalc, ctr.curFilterObj, ctr.curCf, ctr.curAf, ctr.curFreezen);
+            jfrefreshgrid_adRC(
+                ctr.curData, 
+                ctr.curConfig, 
+                "addRC", 
+                ctr.ctrlValue, 
+                ctr.curCalc, 
+                ctr.curFilterObj, 
+                ctr.curCf, 
+                ctr.curAf, 
+                ctr.curFreezen,
+                ctr.curDataVerification,
+                ctr.curHyperlink
+            );
         }
         else if (ctr.type == "delRC") { //删除行列重做操作
-            jfrefreshgrid_adRC(ctr.curData, ctr.curConfig, "delRC", ctr.ctrlValue, ctr.curCalc, ctr.curFilterObj, ctr.curCf, ctr.curAf, ctr.curFreezen);
+            jfrefreshgrid_adRC(
+                ctr.curData, 
+                ctr.curConfig, 
+                "delRC", 
+                ctr.ctrlValue, 
+                ctr.curCalc, 
+                ctr.curFilterObj, 
+                ctr.curCf, 
+                ctr.curAf, 
+                ctr.curFreezen,
+                ctr.curDataVerification,
+                ctr.curHyperlink
+            );
         }
         else if (ctr.type == "deleteCell") { //删除单元格重做操作
-            jfrefreshgrid_deleteCell(ctr.curData, ctr.curConfig, ctr.ctrl, ctr.curCalc, ctr.curFilterObj, ctr.curCf);
+            jfrefreshgrid_deleteCell(
+                ctr.curData, 
+                ctr.curConfig, 
+                ctr.ctrl, 
+                ctr.curCalc, 
+                ctr.curFilterObj, 
+                ctr.curCf,
+                ctr.curDataVerification,
+                ctr.curHyperlink
+            );
         }
         else if (ctr.type == "showHidRows") { // 隐藏、显示行 重做操作
             //config
@@ -540,7 +663,20 @@ const controlHistory = {
             server.saveParam("all", ctr.sheetIndex, ctr.color, { "k": "color" });
         }
         else if (ctr.type == "mergeChange") {
-            jfrefreshgrid(ctr.curData, ctr.range, ctr.curConfig);
+            let allParam = {
+                "cfg": ctr.curConfig,
+            }
+
+            jfrefreshgrid(ctr.curData, ctr.range, allParam);
+        }
+        else if (ctr.type == "updateDataVerification"){
+            dataVerificationCtrl.ref(ctr.historyDataVerification, ctr.currentDataVerification, ctr.sheetIndex);
+        }
+        else if (ctr.type == "updateDataVerificationOfCheckbox"){
+            dataVerificationCtrl.refOfCheckbox(ctr.historyDataVerification, ctr.currentDataVerification, ctr.sheetIndex, ctr.curData, ctr.range);
+        }
+        else if (ctr.type == "updateHyperlink") {
+            hyperlinkCtrl.ref(ctr.historyHyperlink, ctr.currentHyperlink, ctr.sheetIndex, ctr.curData, ctr.range);
         }
         else if (ctr.type == "updateCF"){
             let currentRules = ctr["data"]["currentRules"];
@@ -605,8 +741,13 @@ const controlHistory = {
             zoomNumberDomBind();
             zoomRefreshView();
         }
-        
+
+        if (ctr.range) {
+            Store.luckysheet_select_save = ctr.range;
+            selectHightlightShow();
+        }
         Store.clearjfundo = true;
+
     }
 };
 

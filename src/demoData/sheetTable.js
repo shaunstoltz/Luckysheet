@@ -1,4 +1,4 @@
-const sheetTable = {
+window.sheetTable = {
 	"name": "Table",
 	"color": "",
 	"config": {
@@ -43,7 +43,7 @@ const sheetTable = {
 	},
 	"index": "3",
 	"chart": [],
-	"status": "0",
+	"status": 0,
 	"order": "3",
 	"column": 18,
 	"row": 36,
@@ -1065,4 +1065,4 @@ const sheetTable = {
 	}]
 }
 
-export default sheetTable;
+// export default sheetTable;

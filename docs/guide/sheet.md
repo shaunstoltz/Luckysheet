@@ -17,6 +17,8 @@ eg: options.data：
         "hide": 0,//Whether worksheet hide 
         "row": 36, //the number of rows in a sheet
         "column": 18, //the number of columns in a sheet
+        "defaultRowHeight": 19, //Customized default row height
+        "defaultColWidth": 73, //Customized default column width
         "celldata": [], //Initial the cell data
         "config": {
             "merge":{}, //merged cells
@@ -25,6 +27,7 @@ eg: options.data：
             "rowhidden":{}, //hidden rows
             "colhidden":{}, //hidden columns
             "borderInfo":{}, //borders
+            "authority":{}, //Worksheet protection
         },
         "scrollLeft": 0, //Left and right scroll bar position
         "scrollTop": 315, //Up and down scroll bar position
@@ -39,8 +42,9 @@ eg: options.data：
         "luckysheet_conditionformat_save": {},//condition format
         "frozen": {}, //freeze row and column configuration
         "chart": [], //Chart configuration
-        "allowEdit": true, //is editable
         "zoomRatio":1, // zoom ratio
+        "image":[], //image
+        "showGridLines": 1, //Whether to show grid lines
     },
     {
         "name": "Sheet2",
@@ -76,9 +80,9 @@ eg: options.data：
 
 ------------
 ### index
-- type：Number
-- default：0
-- usage：Worksheet index, starting from 0
+- type：String
+- default：""
+- usage：The worksheet index is used as a unique key value, and a random string is automatically assigned when a worksheet is added. Note that `index` is not the order of worksheets, and is distinguished from `order`.
 
 ------------
 ### status
@@ -90,7 +94,7 @@ eg: options.data：
 ### order
 - type：Number
 - default：0
-- usage： The index of the worksheets is starting from 0. it will increase when a worksheet is added.
+- usage：The subscript of the worksheet represents the order in which the worksheet is displayed in the sheet bar at the bottom. It will increase when a worksheet is added, starting from 0
 
 ------------
 ### hide
@@ -108,19 +112,31 @@ eg: options.data：
 ### column
 - type：Number
 - default：18
-- usage： The number of cell columns
+- usage： Number of cell columns
+
+------------
+### defaultRowHeight
+- type：Number
+- default：19
+- usage： Customized default row height, unit is px
+
+------------
+### defaultColWidth
+- type：Number
+- default：73
+- usage： Customized default column width, unit is px
 
 ------------
 ### celldata
 - type：Array
 - default：[]
-- usage： 原始单元格数据集，存储sheet中所有单元格中的值，是一个包含`{r:0,c:0,v:{m:"value",v:"value",ct: {fa: "General", t: "g"}}}`格式单元格信息的一维数组，只在初始化的时候使用。
+- usage： The original cell data set is a set containing `{r:0,c:0,v:{m:"value",v:"value",ct: {fa: "General", t: "g"}} }`The one-dimensional array of format cell information is only used during initialization.
 
-    r代表行，c代表列，v代表该单元格的值，值可以是字符、数字或者对象。
+    `r` represents the row, `c` represents the column, and `v` represents the value of the cell. value could be string, number, or object
 
-    Luckysheet在建立的时候会根据 `options.data[i].row` 和 `options.data[i].column` 的行列数量大小新建一个表格data，然后再使用 `data[r][c]=v` 的方式填充表格数据，空数据单元格以null表示。
+    The luckysheet creates a sheet data based on the number of `options.data[i].row` and  `options.data[i].column`, then uses `data[r][c]=v` to fullfill tables. Empty data cells are represented as null.
 
-    使用celldata初始化完表格后，数据转换为luckysheetfile中的字段[data](#data)，如`luckysheetfile[i].data`,后续操作表格的数据更新，会更新到这个data字段中，celldata不再使用。 
+    After initializing the table with celldata,the data is converted to the field [data](#data)in the luckyshetfile such as `luckysheetfile[i].data`. `data` stores the following update data and celldata will no longer be used.
 
 - example：
     ```js
@@ -142,7 +158,7 @@ eg: options.data：
         }
     }]
     ```
-> 详细了解 [单元格格式](/zh/guide/cell.html)
+> more detail [cell format](/zh/guide/cell.html)
 
 ------------
 ### config
@@ -225,9 +241,9 @@ eg: options.data：
 - type：Object
 - default：{}
 - usage：Hidden row information, Rows：`rowhidden[Rows]: 0`,
-    格式为：`colhidden[列数]: 0`,
+    format：`colhidden[Cols]: 0`,
 
-        `key`指定列数即可，`value`总是为`0`
+        `key` specify the number of columns,`value` is always `0`
 - example：
     ```js
     "colhidden": {
@@ -237,9 +253,9 @@ eg: options.data：
     ```
 
 #### config.borderInfo
-- type：Object
+- type：Array
 - default：{}
-- usage：单元格的边框信息
+- usage：The border information of the cell
 - example：
     ```js
     "borderInfo": [{
@@ -289,7 +305,7 @@ eg: options.data：
     1. selection `rangeType: "range"`
 
        + Border type `borderType："border-left" | "border-right" | "border-top" | "border-bottom" | "border-all" | "border-outside" | "border-inside" | "border-horizontal" | "border-vertical" | "border-none"`,
-       + Border thickness `style:  1 Thin | 2 Hair | 3 Dotted | 4 Dashed | 5 DashDot | 6 DashDotDot | 7 Double | 8 Medium | 9 MediumDashed | 10 MediumDashDot | 11 MediumDashDotDot | 12 SlantedDashDot | 13 Thick`
+       + Border thickness `style:  1 Thin | 2 Hair | 3 Dotted | 4 Dashed | 5 DashDot | 6 DashDotDot | 7 Double | 8 Medium | 9 MediumDashed | 10 MediumDashDot | 11 MediumDashDotDot | 12 SlantedDashDot | 13 Thick`, If it corresponds to the value of getLineStyle() of aspose.cells, you need to make a conversion yourself, refer to [aspose.cells](https://apireference.aspose.com/cells/net/aspose.cells/cellbordertype)
        + Border color `color: Hexadecimal color value`
        + Selection area `range: Row and column information array`
 
@@ -313,7 +329,7 @@ eg: options.data：
             }]
         }
         ```
-        表示设置范围为`{"row": [7, 8],"column": [2, 3]}`的选区，type为所有边框，边框粗细为`Dotted`，颜色为`"#0000ff"`
+        Represents a selection with a setting range of `{"row": [7, 8], "column": [2, 3]}`, the type is all borders, the border thickness is `Dotted`, and the color is `"#0000ff"`
 
         + ```js
             {
@@ -340,7 +356,45 @@ eg: options.data：
                 }
             }
             ```
-            表示设置单元格`"D4"`，上边框/下边框/左边框/右边框都是边框粗细为`"MediumDashDot"`,颜色为`"rgb(255, 0, 0)"`
+         Means to set the cell `"D4"`, the upper border/lower border/left border/right border are all border thicknesses `"MediumDashDot"`, color is `"rgb(255, 0, 0)"`
+
+#### config.authority
+- type：Object
+- default：{}
+- usage：Worksheet protection, you can set that the entire worksheet is not allowed to be edited or some areas are not editable. If you want to apply for editing permission, you need to enter a password, and customize the types of operations that users can operate.
+- example：
+    ```js        
+    "authority":{//Permission configuration of the current worksheet
+        selectLockedCells:1, //Select locked cells
+        selectunLockedCells:1, //Select unlocked cells
+        formatCells:1, //Format cells
+        formatColumns:1, //Format columns
+        formatRows:1, //Format rows
+        insertColumns:1, //Insert columns
+        insertRows:1, //Insert rows
+        insertHyperlinks:1, //Insert hyperlinks
+        deleteColumns:1, //Delete columns
+        deleteRows:1, //Delete rows
+        sort:1, //Sort
+        filter:1, //Filter
+        usePivotTablereports:1, //Use Pivot Table reports
+        editObjects:1, //Edit objects
+        editScenarios:1, //Edit scenarios   
+        sheet:1, //If it is 1 or true, the worksheet is protected; if it is 0 or false, the worksheet is not protected.
+        hintText:"", //The text of the pop-up prompt
+        algorithmName:"None",//Encryption scheme: MD2,MD4,MD5,RIPEMD-128,RIPEMD-160,SHA-1,SHA-256,SHA-384,SHA-512,WHIRLPOOL
+        saltValue:null, //The salt parameter for password decryption is a random value set by yourself
+        
+        allowRangeList:[{ //Range protection
+            name:"area", //Name
+            password:"1", //Password
+            hintText:"", //Prompt text
+            algorithmName:"None",//Encryption scheme: MD2,MD4,MD5,RIPEMD-128,RIPEMD-160,SHA-1,SHA-256,SHA-384,SHA-512,WHIRLPOOL
+            saltValue:null, //The salt parameter for password decryption is a random value set by yourself
+            sqref:"$C$1:$D$5" //Protected range
+        }],
+    },
+    ```
 
 ------------
 ### scrollLeft
@@ -381,14 +435,14 @@ eg: options.data：
 ### calcChain
 - type：Array
 - default：[]
-- usage： 公式链，用于公式所链接的单元格改变后，所有引用此单元格的公式都会联动刷新
+- usage： Formula chain, used when the cell linked by the formula is changed, all formulas referencing this cell will be refreshed.
 - example：
     ```js
     [{
         "r": 6, //the number of rows
         "c": 3, //the number of columns
         "index": 1, //sheet id
-        "func": [true, 23.75, "=AVERAGE(D3:D6)"], //公式信息，包含公式计算结果和公式字符串
+        "func": [true, 23.75, "=AVERAGE(D3:D6)"], //Formula information, including formula calculation results and formula string
         "color": "w", //"w"：use Depth-First-Search "b":Normal search
         "parent": null,
         "chidren": {},
@@ -423,7 +477,7 @@ eg: options.data：
             "row": [0, 12],
             "column": [0, 4]
         },
-        "pivotDataSheetIndex": 6, //源数据所在的sheet页
+        "pivotDataSheetIndex": 6, //The sheet index where the source data is located
         "column": [{
             "index": 3,
             "name": "subject",
@@ -443,7 +497,7 @@ eg: options.data：
             "nameindex": 0
         }],
         "showType": "column",
-        "pivotDatas": [ //数据透视表的源数据
+        "pivotDatas": [ //Source data for PivotTable
             ["count:score", "science", "mathematics", "foreign language", "English", "total"],
             ["Alex", 1, 1, 1, 1, 4],
             ["Joy", 1, 1, 1, 1, 4],
@@ -459,7 +513,7 @@ eg: options.data：
 ### filter_select
 - type：Object
 - default：{}
-- usage： Filter range, a selection area, a sheet has only one filter range, similar to the `luckysheet_select_save`
+- usage：Filter range. A selection and a sheet have only one filter range, similar to `luckysheet_select_save`. If you just create a selection to turn on the filter function, you can configure this range. If you need to set further detailed filter conditions, you need to configure the [filter](#filter) property of the same level.
 - example：
     ```js
     {
@@ -473,36 +527,64 @@ eg: options.data：
 ### filter
 - type：Object
 - default：{}
-- usage： filter settings
-- example：
+- usage：The specific settings of the filter match with the filter range of `filter_select`. When you create a filter area on the first sheet, you can also see the filter configuration information of the first sheet through `luckysheet.getLuckysheetfile()[0].filter`.
+
+    The following is a complete filter configuration example
     ```js
-    {
+    {   
+        //"0" means the first column
         "0": {
-            "caljs": { // filter type
-                "value": "cellnull",
-                "text": "Is empty",
-                "type": "0"
+            "caljs": { // Filter by condition
+                "value": "cellnull", // Filter type
+                "text": "Is empty", // Type description
+                "type": "0" // Filter categories
             },
-            "rowhidden": { "3": 0, "4": 0 }, // the hidden rows
-            "optionstate": true, //is config active
-            "str": 2, // 范围，起始行
-            "edr": 6, // 范围，结束行
-            "cindex": 1, // 当前范围列索引
-            "stc": 1, // 范围，起始列
-            "edc": 3 // 范围，结束列
+            "rowhidden": { "3": 0, "4": 0 }, // Hidden row information
+            "optionstate": true, // Whether to enable configuration
+            "cindex": 1, // The current range column order, here is the first column
+            "str": 2, // Range, start row
+            "edr": 6, // Range, end row
+            "stc": 1, // Range, start column
+            "edc": 3 // Range, end column
         },
+        //"1" means the second column
         "1": {
             "caljs": {},
-            "rowhidden": { "6": 0 },
+            "rowhidden": { "1": 0},
             "optionstate": true,
+            "cindex": 2, // The current range column order, here is the second column
             "str": 2,
             "edr": 6,
-            "cindex": 2,
             "stc": 1,
             "edc": 3
         }
     }
     ```
+    1. The `key` value of `filter[key]` means the column index, starting from 0, the `cindex` in the specific setting item starts from 1, which has the same meaning as the `key` here.
+    2. `caljs` is used to set the filter type and the corresponding value. After the setting takes effect, the hidden row information will be calculated and stored in `rowhidden`. The following are all the types that can be set, among which `value1` and `value2` are the text information filled in by the user:
+       + `caljs:{value: null, text: "None", type: "0"}`
+       + `caljs:{value: "cellnull", text: "Is empty", type: "0"}`
+       + `caljs:{value: "cellnonull", text: "Is not empty", type: "0"}`
+       + `caljs:{value: "textinclude", text: "Text contains", type: "1", value1: "Lucky"}`
+       + `caljs:{value: "textnotinclude", text: "Text does not contain", type: "1", value1: "Lucky"}`
+       + `caljs:{value: "textstart", text: "Text starts with", type: "1", value1: "Lucky"}`
+       + `caljs:{value: "textend", text: "Text ends with", type: "1", value1: "Lucky"}`
+       + `caljs:{value: "textequal", text: "Text is exactly", type: "1", value1: "Lucky"}`
+       + `caljs:{value: "dateequal", text: "Date is", type: "1", value1: "2020-10-16"}`
+       + `caljs:{value: "datelessthan", text: "Date is before", type: "1", value1: "2020-10-16"}`
+       + `caljs:{value: "datemorethan", text: "Date is after", type: "1", value1: "2020-10-16"}`
+       + `caljs:{value: "morethan", text: "Greater than", type: "1", value1: "10"}`
+       + `caljs:{value: "moreequalthan", text: "Greater than or equal to", type: "1", value1: "10"}`
+       + `caljs:{value: "lessthan", text: "Less than", type: "1", value1: "10"}`
+       + `caljs:{value: "lessequalthan", text: "Less than or equal to", type: "1", value1: "10"}`
+       + `caljs:{value: "equal", text: "Is equal to", type: "1", value1: "10"}`
+       + `caljs:{value: "noequal", text: "Is not equal to", type: "1", value1: "10"}`
+       + `caljs:{value: "include", text: "Is between", type: "2", value1: "15", value2: "25"}`
+       + `caljs:{value: "noinclude", text: "Is not between", type: "2", value1: "15", value2: "25"}`
+    3. `rowhidden` is stored hidden row information, but if `caljs` is not set to filter by conditions, it means that color filtering (if there is a color distinction between the rows) and filtering by value are set. So it can be seen that the priority of `caljs` is greater than that of `rowhidden`.
+    4. `optionstate` indicates whether to enable the configuration, this is an internal flag, just set `true` directly.
+    5. `cindex` represents the column order currently set, counting from 1 and corresponding to the `key` value of `filter[key]`, and the result is `key`+1.
+    6. `str` is the start row, `edr` is the end row, `stc` is the start column, and `edc` is the end column. The four numbers represent the entire filter range, which should be consistent with the content of `filter_select`.
 
 ------------
 ### luckysheet_alternateformat_save
@@ -512,30 +594,30 @@ eg: options.data：
 - example：
     ```js
     [{
-        "cellrange": { //单元格范围
+        "cellrange": { //cell range
             "row": [1, 6],
             "column": [1, 5]
         },
         "format": {
-            "head": { //页眉颜色
+            "head": { //Header color
                 "fc": "#000",
                 "bc": "#5ed593"
             },
-            "one": { //第一种颜色
+            "one": { //The first color
                 "fc": "#000",
                 "bc": "#ffffff"
             },
-            "two": { //第二种颜色
+            "two": { //The second color
                 "fc": "#000",
                 "bc": "#e5fbee"
             },
-            "foot": { //页脚颜色
+            "foot": { //Footers color
                 "fc": "#000",
                 "bc": "#a5efcc"
             }
         },
-        "hasRowHeader": false, //含有页眉
-        "hasRowFooter": false //含有页脚
+        "hasRowHeader": false, //is included header
+        "hasRowFooter": false //is included footer
     }, {
         "cellrange": {
             "row": [1, 6],
@@ -572,7 +654,7 @@ eg: options.data：
 - example：
     ```js
     [{
-        "head": { //页眉颜色
+        "head": { //Header color
             "fc": "#6aa84f",
             "bc": "#ffffff"
         },
@@ -611,18 +693,18 @@ eg: options.data：
     [
         {
             "type": "default",
-            "cellrange": [ //应用的范围
+            "cellrange": [ //cell range
                 {
                     "row": [ 2, 7 ],
                     "column": [ 2, 2 ]
                 }
             ],
-            "format": { //type 为 default 时 应设置文本颜色和单元格颜色
+            "format": { //when type is default, you should set the text color and cell color 
                 "textColor": "#000000",
                 "cellColor": "#ff0000"
             },
             "conditionName": "betweenness", //type
-            "conditionRange": [ //条件值所在单元格
+            "conditionRange": [ //condition value in the cell 
                 {
                     "row": [ 4, 4 ],
                     "column": [ 2, 2 ]
@@ -633,7 +715,7 @@ eg: options.data：
                 }
             ],
             "conditionValue": [ 2, 4
-            ] //自定义传入的条件值
+            ] //Customize the condition value
         },
         {
             "type": "dataBar",
@@ -683,36 +765,36 @@ eg: options.data：
 ### frozen
 - type：Array
 - default：[]
-- usage： the settings of freeze row and column which is divided into 6 types冻结行列设置，分为6种type
+- usage： the settings of freeze row and column which is divided into 6 types
     1. "row": the first freeze row
     2. "column": the first freeze column
     3. "both": the freeze rows and columns
-    4. "rangeRow": 冻结行到选区
-    5. "rangeColumn": 冻结列到选区
-    6. "rangeBoth": 冻结行列到选区
+    4. "rangeRow": Freeze row to range
+    5. "rangeColumn": Freeze column to range
+    6. "rangeBoth": Freeze column and row to range
     7. "cancel": cancel freeze
 
-    当设置冻结到选区的时候，需要设置开启冻结的单元格位置，格式为`{ row_focus:0, column_focus:0 }`，意为当前激活的单元格的行数和列数。
+    When setting the freezing to the selected area, you need to set the cell position to turn on the freezing. The format should like this`{ row_focus:0, column_focus:0 }`，which mean the rows and cols of an active cell.
 
-    sheet新的配置属性，存储更语义化的配置，用于初始化和传给后端。
+    The new configuration property of sheet, which stores more semantic configuration, is used to initialize and pass to the server.
     
-    注意一点，luckysheetfile中还有一个配置freezen，其中的freezenhorizontaldata仍然用作本地数据，但是不发给后台存储，只做本地调试。
+    Be careful, you can find `freezenhorizontaldata` in the luckysheetfile that used for freezen, however `freezenhorizontaldata` is only for local debugging。
 
 - example：
-    - 冻结首行
+    - Freeze first line
     ```json
     {
         type: 'row'
     }
     ```
-    - 冻结行到`'A1'`选区
+    - Freeze row and column to `'A1'`
      ```json
     {
         type: 'rangeRow',
         range: {row_focus: 0, column_focus: 0}
     }
     ```
-    - 冻结行列到`'B2'`选区
+    - Freeze row and column to `'B2'`
      ```json
     {
         type: 'rangeBoth',
@@ -1194,26 +1276,61 @@ eg: options.data：
     :::
 
 ------------
-### allowEdit
-- type：Boolean
-- default：true
-- usage： is this sheet editable
-
-------------
 ### zoomRatio
 - type：Number
 - default：1
 - usage： the zoom ratio of a sheet, which is a two decimal digit between 0~1, like `0.1`、`0.56`.
 
 ------------
+### image
+- type：Array
+- default：[]
+- usage： Insert the picture information in the table, including picture address, width and height, position, cropping and other information
+- example：
+    The following is an example of `imageItem`, usually there may be multiple images in a worksheet, so the format of `image` is array `[imageItem,imageItem,...]`
+    ```json
+    {
+        type: '3', //1 Move and resize the cell 2 Move and do not resize the cell 3 Don't move and resize the cell
+        src:'', //image url
+        originWidth: 1484, //The original width of the picture
+        originHeight: 834, //The original height of the picture
+        default: {
+            width: 293, //image width
+            height: 196, //image height
+            left: 409, //The position of the picture from the left of the table
+            top: 248, //The position of the picture from the top of the table
+        },
+        crop: {
+            width: 293, //The width of the picture after cropping
+            height: 196, //The height of the picture after cropping
+            offsetLeft: 0, //Displacement from the left of the picture after cropping
+            offsetTop: 0, //Displacement from the left of the picture after cropping
+        },
+        isFixedPos: false, //Fixed position
+        fixedLeft: 507, //Fixed position left displacement
+        fixedTop: 141, //fixed position right displacement
+        border: {
+            width: 0, //border width
+            radius: 0, //Border radius
+            style:'solid', //border type
+            color:'#000', //Border color
+        }
+    }
+    ```
+------------
+### showGridLines
+- Type: Number
+- Default: 1
+- Usage: Whether to show grid lines, `1` means show, `0` means hidden
+
+------------
 
 ## debug information
+The parameters required for initialization will be designed as simple as possible, but the parameters stored locally are different.
 
-初始化所需要的参数，会从简洁的角度出发来考虑设计，但是本地存储的参数则不同。
+After initialization, Luckysheet stores more and more local data in luckysheetfile as local parameter. It means that we can realize the usage of Store data center. For example, the format of Freezen's parameters will also change.
 
-Luckysheet在初始化完成之后进行的一系列操作，会将更多本地参数存储在luckysheetfile中，作为本地使用的参数，实现一些类似Store数据中心的usage。比如，freezen的参数格式也会变化。
-
-此时的luckysheetfile包含很多非初始化使用的本地参数，可用于调试代码、本地状态分析。如下展示了更丰富luckysheetfile信息，可通过方法 `luckysheet.getluckysheetfile()`获得：
+At this point, the lucky sheet file contains many local parameters that are not initialized and can be used to debug、analysis local status. you can use  `luckysheet.getluckysheetfile()` to get more information：
 
 ::: details
 ```json
@@ -1225,20 +1342,21 @@ Luckysheet在初始化完成之后进行的一系列操作，会将更多本地�
         "status": 1, //Worksheet active status
         "order": 0, //The order of the worksheet
         "hide": 0,//Whether worksheet hide 
-        "row": 36, //the number of rows in a sheet
-        "column": 18, //the number of columns in a sheet
+        "row": 36, //The number of rows in a sheet
+        "column": 18, //The number of columns in a sheet
         "celldata": [], //Initial the cell data
         "config": {
-            "merge":{}, //merged cells
+            "merge":{}, //Merged cells
             "rowlen":{}, //Table row height
             "columnlen":{}, //Table column width
-            "rowhidden":{}, //hidden rows
-            "colhidden":{}, //hidden columns
-            "borderInfo":{}, //borders
+            "rowhidden":{}, //Hidden rows
+            "colhidden":{}, //Hidden columns
+            "borderInfo":{}, //Borders
+            "authority":{}, //Worksheet protection
         },
         "scrollLeft": 0, //Left and right scroll bar position
         "scrollTop": 315, //Up and down scroll bar position
-        "luckysheet_select_save": [], //selected area
+        "luckysheet_select_save": [], //Selected area
         "calcChain": [],//Formula chain
         "isPivotTable":false,//Whether is pivot table
         "pivotTable":{},//Pivot table settings
@@ -1246,20 +1364,21 @@ Luckysheet在初始化完成之后进行的一系列操作，会将更多本地�
         "filter": null,//Filter configuration
         "luckysheet_alternateformat_save": [], //Alternate colors
         "luckysheet_alternateformat_save_modelCustom": [], //Customize alternate colors	
-        "luckysheet_conditionformat_save": {},//condition format
-        "frozen": {}, //freeze row and column configuration
-        "freezen": {}, //冻结行列的渲染数据存储
+        "luckysheet_conditionformat_save": {},//Condition format
+        "frozen": {}, //Freeze row and column configuration
+        "freezen": {}, //Storage freeze row and column rendering data
         "chart": [], //Chart configuration
-        "allowEdit": true, //is editable
-        "zoomRatio":1, // zoom ratio
+        "zoomRatio":1, // Zoom ratio
+        "image":[], //image
+        "showGridLines": 1, //Whether to show grid lines
         
 
-        "visibledatarow": [], //所有行的位置
-        "visibledatacolumn": [], //所有列的位置
-        "ch_width": 2322, //工作表区域的宽度
-        "rh_height": 949, //工作表区域的高度
-        "load": "1", //已加载过此sheet的标识
-        "data": [], //更新和存储使用的单元格数据
+        "visibledatarow": [], //Positions of all rows
+        "visibledatacolumn": [], //Positions of all columns
+        "ch_width": 2322, //The width of a sheet
+        "rh_height": 949, //The heighSt of a sheet
+        "load": "1", //Check whether this sheed has been loaded
+        "data": [], // Store and update the cell data
     },
     {
         "name": "Sheet2",
@@ -1286,7 +1405,7 @@ Luckysheet在初始化完成之后进行的一系列操作，会将更多本地�
 ### visibledatarow
 - type：Number
 - default：[]
-- usage： Position information of all rows, incremental row position data, No need to set up for initialization置
+- usage： Position information of all rows, incremental row position data, No need to set up for initialization
 
 ------------
 ### visibledatacolumn

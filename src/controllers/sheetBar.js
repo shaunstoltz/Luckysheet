@@ -11,14 +11,16 @@ import { isEditMode } from '../global/validate';
 import formula from '../global/formula';
 import cleargridelement from '../global/cleargridelement';
 import tooltip from '../global/tooltip';
+    selectTextDom
+import {selectTextDom} from '../global/cursorPos';
 import locale from '../locale/locale';
 import Store from '../store';
-
-
+import luckysheetConfigsetting from './luckysheetConfigsetting';
+import {pagerInit} from '../global/api'
 
 
 //表格底部名称栏区域 相关事件（增、删、改、隐藏显示、颜色等等）
-let isInitialSheetConfig = false, luckysheetcurrentSheetitem = null, jfdbclicklagTimeout = null;
+let isInitialSheetConfig = false, luckysheetcurrentSheetitem = null, jfdbclicklagTimeout = null,oldSheetFileName = "";
 function showsheetconfigmenu() {
     if (!isInitialSheetConfig) {
         isInitialSheetConfig = true;
@@ -69,7 +71,7 @@ function showsheetconfigmenu() {
                     redo["oldcolor"] = oldcolor;
                     redo["color"] = color;
                     
-                    Store.jfundo = [];
+                    Store.jfundo.length = 0;
                     Store.jfredo.push(redo);
                 }
             }
@@ -94,7 +96,7 @@ function showsheetconfigmenu() {
                 redo["oldcolor"] = oldcolor;
                 redo["color"] = null;
 
-                Store.jfundo = [];
+                Store.jfundo.length = 0;
                 Store.jfredo.push(redo);
             }
         });
@@ -107,6 +109,14 @@ function showsheetconfigmenu() {
     }
 
     $("#luckysheetsheetconfigcolorur").parent().find("span, div, button, input, a").addClass("luckysheet-mousedown-cancel");
+
+    // 如果全部按钮设置了隐藏，则不显示
+    const config = luckysheetConfigsetting.sheetRightClickConfig;
+    // if(!config.delete && !config.copy && !config.rename && !config.color && !config.hide && !config.move){
+    if(Object.values(config).every(ele=> !ele)){
+        return;
+    }
+
     setTimeout(function(){
         mouseclickposition($("#luckysheet-rightclick-sheet-menu"), luckysheetcurrentSheetitem.offset().left + luckysheetcurrentSheetitem.width(), luckysheetcurrentSheetitem.offset().top - 18, "leftbottom");
     },1);
@@ -126,6 +136,11 @@ let luckysheetsheetrightclick = function ($t, $cur, e) {
         }, 1);
     }
     else {
+        //保存正在编辑的单元格内容
+        if (parseInt($("#luckysheet-input-box").css("top")) > 0) {
+            formula.updatecell(Store.luckysheetCellUpdate[0], Store.luckysheetCellUpdate[1]);
+        }
+
         $("#luckysheet-input-box").removeAttr("style");
         $("#luckysheet-formula-functionrange .luckysheet-formula-functionrange-highlight").remove();
     }
@@ -190,6 +205,7 @@ export function initialSheetBar(){
             }, 200);
         }
     }).on("click", "div.luckysheet-sheets-item", function (e) {
+    
         if(isEditMode()){
             // alert("非编辑模式下不允许该操作！");
             return;
@@ -197,6 +213,7 @@ export function initialSheetBar(){
         
         let $t = $(this), $cur = $(e.target);
         luckysheetsheetrightclick($t, $cur, e);
+        server.keepHighLightBox()
     });
 
     let luckysheetsheetnameeditor = function ($t) {
@@ -206,16 +223,7 @@ export function initialSheetBar(){
         $t.attr("contenteditable", "true").addClass("luckysheet-mousedown-cancel").data("oldtxt", $t.text());
 
         setTimeout(function () {
-            if (document.selection) {
-                let range = document.body.createTextRange();
-                range.moveToElementText($t.get(0));
-                range.select();
-            } else if (window.getSelection) {
-                let range = document.createRange();
-                range.selectNodeContents($t.get(0));
-                window.getSelection().removeAllRanges();
-                window.getSelection().addRange(range);
-            }
+            selectTextDom($t.get(0));
         }, 1);
     }
 
@@ -223,13 +231,67 @@ export function initialSheetBar(){
         luckysheetsheetnameeditor($(this));
     });
 
+    let compositionFlag = true;
+    $("#luckysheet-sheet-area").on("compositionstart", "span.luckysheet-sheets-item-name",  ()=> compositionFlag = false);
+    $("#luckysheet-sheet-area").on("compositionend", "span.luckysheet-sheets-item-name", ()=> compositionFlag = true);
+    $("#luckysheet-sheet-area").on("input", "span.luckysheet-sheets-item-name", function () {
+        if(Store.allowEdit===false){
+            return;
+        }
+
+        if(Store.limitSheetNameLength === false){
+            return
+        }
+        
+        let maxLength = Store.defaultSheetNameMaxLength;
+        if(maxLength  === 0){
+            return
+        }
+
+        setTimeout( ()=> {
+            if (compositionFlag) {
+               
+                if ($(this).text().length >= maxLength) {  /* 检查：值是否越界 */
+                    setTimeout(() => {
+                        $(this).text($(this).text().substring(0, maxLength));
+
+                        let range = window.getSelection();  
+                        range.selectAllChildren(this); 
+                        range.collapseToEnd();
+                    }, 0);
+                 } 
+            }
+        }, 0);
+    });
+        
     $("#luckysheet-sheet-area").on("blur", "span.luckysheet-sheets-item-name", function (e) {
         if(Store.allowEdit===false){
             return;
         }
+
+        if(0 === $(this).text().length){
+           
+            tooltip.info("", locale_sheetconfig.sheetNamecannotIsEmptyError);
+            
+            setTimeout(()=>{
+                $(this).text(oldSheetFileName);
+                luckysheetsheetnameeditor($(this));
+                $(this).focus();
+            }, 1);
+            return;
+        }
+
         let $t = $(this);
         let txt = $t.text(), oldtxt = $t.data("oldtxt");
-        
+        if(txt.length>31 || txt.charAt(0)=="'" || txt.charAt(txt.length-1)=="'" || /[：\:\\\/？\?\*\[\]]+/.test(txt)){
+            alert(locale_sheetconfig.sheetNameSpecCharError);
+            setTimeout(()=>{
+                luckysheetsheetnameeditor($(this));
+                $(this).focus();
+            }, 1);
+            return;
+        }
+
         let index = getSheetIndex(Store.currentSheetIndex);
         for (let i = 0; i < Store.luckysheetfile.length; i++) {
             if (index != i && Store.luckysheetfile[i].name == txt) {
@@ -259,7 +321,7 @@ export function initialSheetBar(){
             redo["oldtxt"] = oldtxt;
             redo["txt"] = txt;
 
-            Store.jfundo = [];
+            Store.jfundo.length = 0;
             Store.jfredo.push(redo);
         }
     });
@@ -272,6 +334,7 @@ export function initialSheetBar(){
         let $t = $(this);
         if (kcode == keycode.ENTER) {
             let index = getSheetIndex(Store.currentSheetIndex);
+            oldSheetFileName = Store.luckysheetfile[index].name || oldSheetFileName; 
             Store.luckysheetfile[index].name = $t.text();
             $t.attr("contenteditable", "false");
         }
@@ -352,6 +415,11 @@ export function initialSheetBar(){
     });
 
     $("#luckysheet-sheets-add").click(function (e) {
+        //保存正在编辑的单元格内容
+        if (parseInt($("#luckysheet-input-box").css("top")) > 0) {
+            formula.updatecell(Store.luckysheetCellUpdate[0], Store.luckysheetCellUpdate[1]);
+        }
+
         sheetmanage.addNewSheet(e);
         sheetmanage.locationSheet();
         $("#luckysheet-input-box").removeAttr("style");
@@ -400,6 +468,11 @@ export function initialSheetBar(){
 
     let initialOpenSheet = true;
     $("#luckysheet-sheets-m").click(function (e) {
+        //保存正在编辑的单元格内容
+        if (parseInt($("#luckysheet-input-box").css("top")) > 0) {
+            formula.updatecell(Store.luckysheetCellUpdate[0], Store.luckysheetCellUpdate[1]);
+        }
+
         $("#luckysheet-sheet-list").html("");
 
         let item = "";
@@ -436,6 +509,7 @@ export function initialSheetBar(){
                     sheetmanage.setSheetShow(index);
                     sheetmanage.locationSheet();
                 }
+                server.keepHighLightBox()
             });
 
             initialOpenSheet = false;
@@ -446,8 +520,15 @@ export function initialSheetBar(){
 
         let $t = $("#luckysheet-sheet-list");
 
-        mouseclickposition($t, $(this).offset().left, $(this).offset().top - 12, "leftbottom");
+        let left = $(this).offset().left - $('#' + Store.container).offset().left;
+        let bottom = $(this).height() + $('#luckysheet-sta-content').height() + 12;
+        $t.css({left: left + 'px', bottom: bottom + 'px'}).show();
         $("#luckysheet-input-box").removeAttr("style");
     });
+
+    // 初始化分页器
+    if (luckysheetConfigsetting.pager) {
+        pagerInit(luckysheetConfigsetting.pager)
+    }
 
 }

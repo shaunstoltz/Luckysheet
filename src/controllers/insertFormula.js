@@ -15,7 +15,7 @@ const insertFormula = {
         let _this = this;
         let _locale = locale();
         let locale_formulaMore = _locale.formulaMore;
-        let locale_button = _locale.button
+        let locale_button = _locale.button;
 
         $(document).off("keyup.fxSFLI").on("keyup.fxSFLI", "#searchFormulaListInput", function(){
             $("#formulaTypeList").empty();
@@ -329,7 +329,7 @@ const insertFormula = {
                 }
             }
             else{ //参数是公式
-                $("#luckysheet-search-formula-parm .parmBox").eq(index).find(".val").text(" = {"+ eval($.trim(formula.functionParser("=" + parmtxt))) +"}");
+                $("#luckysheet-search-formula-parm .parmBox").eq(index).find(".val").text(" = {"+ (new Function("return " + $.trim(formula.functionParserExe("=" + parmtxt)))()) +"}");
             }
         })
 
@@ -419,7 +419,7 @@ const insertFormula = {
 
             luckysheet_count_show(col_pre, row_pre, col - col_pre - 1, row - row_pre - 1, cellrange.row, cellrange.column);
 
-            $("#luckysheet-search-formula-parm .parmBox").eq(formula.data_parm_index).find(".val").text(" = {"+ eval($.trim(formula.functionParser("=" + parmtxt))) +"}");
+            $("#luckysheet-search-formula-parm .parmBox").eq(formula.data_parm_index).find(".val").text(" = {"+ (new Function("return " + $.trim(formula.functionParserExe("=" + parmtxt)))()) +"}");
         }
     },
     functionStrCompute: function(){
@@ -471,12 +471,12 @@ const insertFormula = {
         $("#luckysheet-functionbox-cell").html($("#luckysheet-rich-text-editor").html());
         
         if(isVal){ //公式计算
-            let fp = $.trim(formula.functionParser($("#luckysheet-rich-text-editor").text()));
+            let fp = $.trim(formula.functionParserExe($("#luckysheet-rich-text-editor").text()));
             
             let result = null;
 
             try {
-                result = eval(fp);
+                result = new Function("return " + fp)();
             } 
             catch (e) {
                 result = formula.error.n;

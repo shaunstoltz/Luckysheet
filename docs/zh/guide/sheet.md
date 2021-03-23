@@ -13,10 +13,12 @@ options.data示例如下：
         "color": "", //工作表颜色
         "index": 0, //工作表索引
         "status": 1, //激活状态
-        "order": 0, //工作表的顺序
+        "order": 0, //工作表的下标
         "hide": 0,//是否隐藏
         "row": 36, //行数
         "column": 18, //列数
+        "defaultRowHeight": 19, //自定义行高
+        "defaultColWidth": 73, //自定义列宽
         "celldata": [], //初始化使用的单元格数据
         "config": {
             "merge":{}, //合并单元格
@@ -25,6 +27,8 @@ options.data示例如下：
             "rowhidden":{}, //隐藏行
             "colhidden":{}, //隐藏列
             "borderInfo":{}, //边框
+            "authority":{}, //工作表保护
+            
         },
         "scrollLeft": 0, //左右滚动条位置
         "scrollTop": 315, //上下滚动条位置
@@ -39,9 +43,10 @@ options.data示例如下：
         "luckysheet_conditionformat_save": {},//条件格式
         "frozen": {}, //冻结行列配置
         "chart": [], //图表配置
-        "allowEdit": true, //是否允许编辑
         "zoomRatio":1, // 缩放比例
         "image":[], //图片
+        "showGridLines": 1, //是否显示网格线
+        "dataVerification":{} //数据验证配置
     },
     {
         "name": "Sheet2",
@@ -77,9 +82,9 @@ options.data示例如下：
 
 ------------
 ### index
-- 类型：Number
-- 默认值：0
-- 作用：工作表索引，从0开始
+- 类型：String
+- 默认值：""
+- 作用：工作表索引，作为唯一key值使用，新增工作表时会自动赋值一个随机字符串。注意`index`不是工作表顺序，和`order`区分开。
 
 ------------
 ### status
@@ -91,7 +96,7 @@ options.data示例如下：
 ### order
 - 类型：Number
 - 默认值：0
-- 作用： 工作表的索引，新增工作表时会递增，从0开始
+- 作用： 工作表的下标，代表工作表在底部sheet栏展示的顺序，新增工作表时会递增，从0开始
 
 ------------
 ### hide
@@ -110,6 +115,18 @@ options.data示例如下：
 - 类型：Number
 - 默认值：18
 - 作用： 单元格列数
+
+------------
+### defaultRowHeight
+- 类型：Number
+- 默认值：19
+- 作用： 自定义的默认行高，单位为px
+
+------------
+### defaultColWidth
+- 类型：Number
+- 默认值：73
+- 作用： 自定义的默认列宽，单位为px
 
 ------------
 ### celldata
@@ -238,7 +255,7 @@ options.data示例如下：
     ```
 
 #### config.borderInfo
-- 类型：Object
+- 类型：Array
 - 默认值：{}
 - 作用：单元格的边框信息
 - 示例：
@@ -290,7 +307,7 @@ options.data示例如下：
     1. 选区 `rangeType: "range"`
 
         + 边框类型 `borderType："border-left" | "border-right" | "border-top" | "border-bottom" | "border-all" | "border-outside" | "border-inside" | "border-horizontal" | "border-vertical" | "border-none"`，
-        + 边框粗细 `style:  1 Thin | 2 Hair | 3 Dotted | 4 Dashed | 5 DashDot | 6 DashDotDot | 7 Double | 8 Medium | 9 MediumDashed | 10 MediumDashDot | 11 MediumDashDotDot | 12 SlantedDashDot | 13 Thick`
+        + 边框粗细 `style:  1 Thin | 2 Hair | 3 Dotted | 4 Dashed | 5 DashDot | 6 DashDotDot | 7 Double | 8 Medium | 9 MediumDashed | 10 MediumDashDot | 11 MediumDashDotDot | 12 SlantedDashDot | 13 Thick`，和aspose.cells的getLineStyle()的值对应的话，需要自己做个转换，参考 [aspose.cells](https://apireference.aspose.com/cells/net/aspose.cells/cellbordertype)
         + 边框颜色 `color: 16进制颜色值`
         + 选区范围 `range: 行列信息数组`
 
@@ -342,6 +359,44 @@ options.data示例如下：
             }
             ```
             表示设置单元格`"D4"`，上边框/下边框/左边框/右边框都是边框粗细为`"MediumDashDot"`,颜色为`"rgb(255, 0, 0)"`
+
+#### config.authority
+- 类型：Object
+- 默认值：{}
+- 作用：工作表保护，可以设置当前整个工作表不允许编辑或者部分区域不可编辑，如果要申请编辑权限需要输入密码，自定义配置用户可以操作的类型等。
+- 示例：
+    ```js        
+    "authority":{//当前工作表的权限配置
+        selectLockedCells:1, //选定锁定单元格
+        selectunLockedCells:1, //选定解除锁定的单元格
+        formatCells:1, //设置单元格格式
+        formatColumns:1, //设置列格式
+        formatRows:1, //设置行格式
+        insertColumns:1, //插入列
+        insertRows:1, //插入行
+        insertHyperlinks:1, //插入超链接
+        deleteColumns:1, //删除列
+        deleteRows:1, //删除行
+        sort:1, //排序
+        filter:1, //使用自动筛选
+        usePivotTablereports:1, //使用数据透视表和报表
+        editObjects:1, //编辑对象
+        editScenarios:1, //编辑方案    
+        sheet:1, //如果为1或true，则该工作表受到保护；如果为0或false，则该工作表不受保护。
+        hintText:"", //弹窗提示的文字
+        algorithmName:"None",//加密方案：MD2,MD4,MD5,RIPEMD-128,RIPEMD-160,SHA-1,SHA-256,SHA-384,SHA-512,WHIRLPOOL
+        saltValue:null, //密码解密的盐参数，为一个自己定的随机数值
+        
+        allowRangeList:[{ //区域保护
+            name:"area", //名称
+            password:"1", //密码
+            hintText:"", //提示文字
+            algorithmName:"None",//加密方案：MD2,MD4,MD5,RIPEMD-128,RIPEMD-160,SHA-1,SHA-256,SHA-384,SHA-512,WHIRLPOOL
+            saltValue:null, //密码解密的盐参数，为一个自己定的随机数值
+            sqref:"$C$1:$D$5" //区域范围
+        }],
+    },
+    ```
 
 ------------
 ### scrollLeft
@@ -463,7 +518,7 @@ options.data示例如下：
 ### filter_select
 - 类型：Object
 - 默认值：{}
-- 作用： 筛选范围，一个选区，一个sheet只有一个筛选范围，类似`luckysheet_select_save`
+- 作用： 筛选范围。一个选区，一个sheet只有一个筛选范围，类似`luckysheet_select_save`。如果仅仅只是创建一个选区打开筛选功能，则配置这个范围即可，如果还需要进一步设置详细的筛选条件，则需要另外配置同级的 [filter](#filter) 属性。
 - 示例：
     ```js
     {
@@ -477,36 +532,64 @@ options.data示例如下：
 ### filter
 - 类型：Object
 - 默认值：{}
-- 作用： 筛选的具体设置
-- 示例：
+- 作用： 筛选的具体设置，跟`filter_select`筛选范围是互相搭配的。当你在第一个sheet页创建了一个筛选区域，通过`luckysheet.getLuckysheetfile()[0].filter`也可以看到第一个sheet的筛选配置信息。
+
+    以下是一个完整的筛选配置案例
     ```js
-    {
+    {   
+        //"0"表示第一列
         "0": {
-            "caljs": { // 条件筛选类型
-                "value": "cellnull",
-                "text": "Is empty",
-                "type": "0"
+            "caljs": { // 按条件筛选
+                "value": "cellnull", // 筛选类型
+                "text": "Is empty", // 类型说明
+                "type": "0" // 筛选大类
             },
-            "rowhidden": { "3": 0, "4": 0 }, // 隐藏行
-            "optionstate": true, //是否开启配置
+            "rowhidden": { "3": 0, "4": 0 }, // 隐藏行信息
+            "optionstate": true, // 是否开启配置
+            "cindex": 1, // 当前范围列顺序，这里表示第一列
             "str": 2, // 范围，起始行
             "edr": 6, // 范围，结束行
-            "cindex": 1, // 当前范围列索引
             "stc": 1, // 范围，起始列
             "edc": 3 // 范围，结束列
         },
+        //"1"表示第二列
         "1": {
             "caljs": {},
-            "rowhidden": { "6": 0 },
+            "rowhidden": { "1": 0},
             "optionstate": true,
+            "cindex": 2, // 当前范围列顺序，这里表示第二列
             "str": 2,
             "edr": 6,
-            "cindex": 2,
             "stc": 1,
             "edc": 3
         }
     }
     ```
+    1. `filter[key]`的`key`值，表示是列索引，从0开始，具体设置项中的`cindex`是从1开始，和这里的`key`是同一个意思。
+    2. `caljs`用来设置按条件筛选的类型和对应的值，设置生效后，会计算隐藏行信息存储在`rowhidden`中。以下是全部的可设置的类型，其中`value1`和`value2`就是用户自己填的文本信息：
+       + `caljs:{value: null, text: "无", type: "0"}`
+       + `caljs:{value: "cellnull", text: "单元格为空", type: "0"}`
+       + `caljs:{value: "cellnonull", text: "单元格有数据", type: "0"}`
+       + `caljs:{value: "textinclude", text: "文本包含", type: "1", value1: "Lucky"}`
+       + `caljs:{value: "textnotinclude", text: "文本不包含", type: "1", value1: "Lucky"}`
+       + `caljs:{value: "textstart", text: "文本开头为", type: "1", value1: "Lucky"}`
+       + `caljs:{value: "textend", text: "文本结尾为", type: "1", value1: "Lucky"}`
+       + `caljs:{value: "textequal", text: "文本等于", type: "1", value1: "Lucky"}`
+       + `caljs:{value: "dateequal", text: "日期等于", type: "1", value1: "2020-10-16"}`
+       + `caljs:{value: "datelessthan", text: "日期早于", type: "1", value1: "2020-10-16"}`
+       + `caljs:{value: "datemorethan", text: "日期晚于", type: "1", value1: "2020-10-16"}`
+       + `caljs:{value: "morethan", text: "大于", type: "1", value1: "10"}`
+       + `caljs:{value: "moreequalthan", text: "大于等于", type: "1", value1: "10"}`
+       + `caljs:{value: "lessthan", text: "小于", type: "1", value1: "10"}`
+       + `caljs:{value: "lessequalthan", text: "小于等于", type: "1", value1: "10"}`
+       + `caljs:{value: "equal", text: "等于", type: "1", value1: "10"}`
+       + `caljs:{value: "noequal", text: "不等于", type: "1", value1: "10"}`
+       + `caljs:{value: "include", text: "介于", type: "2", value1: "15", value2: "25"}`
+       + `caljs:{value: "noinclude", text: "不在其中", type: "2", value1: "15", value2: "25"}`
+    3. `rowhidden`是存储的隐藏行信息，但是如果没有设置`caljs`按条件筛选，则表明是设置了按颜色筛选（如果行之间有颜色区分的话）和按值进行筛选。所以可以看出，`caljs`的优先级大于`rowhidden`。
+    4. `optionstate`表示是否开启配置，这是一个内部标识，直接设置`true`即可。
+    5. `cindex`表示当前设置的列顺序，从1开始计数，和`filter[key]`的`key`值形成对应，结果是`key`+1。
+    6. `str`是起始行，`edr`是结束行，`stc`是起始列，`edc`是结束列，四个数字代表整个筛选范围，与`filter_select`的内容保持一致即可。
 
 ------------
 ### luckysheet_alternateformat_save
@@ -1198,12 +1281,6 @@ options.data示例如下：
     :::
 
 ------------
-### allowEdit
-- 类型：Boolean
-- 默认值：true
-- 作用： 此sheet页是否允许编辑
-
-------------
 ### zoomRatio
 - 类型：Number
 - 默认值：1
@@ -1246,7 +1323,68 @@ options.data示例如下：
     }
     ```
 ------------
+### showGridLines
+- 类型：Number
+- 默认值：1
+- 作用：是否显示网格线，`1`表示显示，`0`表示隐藏
 
+------------
+### dataVerification
+- 类型：Object
+- 默认值：{}
+- 作用：数据验证的配置信息。以下列出了所有需要设置的详细字段：
+  + {String} [type]: 类型；值可为
+    + `"dropdown"`(下拉列表)
+    + `"checkbox"`(复选框)
+    + `"number"`(数字)
+    + `"number_integer"`(数字-整数)
+    + `"number_decimal"`(数字-小数)
+    + `"text_content"`(文本-内容)
+    + `"text_length"`(文本-长度)
+    + `"date"`(日期)
+    + `"validity"`(有效性)；
+  + {String | Null} [type2]: 条件类型；
+    + 类型`type`值为`"dropdown"/"checkbox"`时，`type2`值可为        
+        + `null`；
+    + 类型`type`值为`"number"/"number_integer"/"number_decimal"/"text_length"`时，`type2`值可为
+      + `"bw"`(介于)
+      + `"nb"`(不介于)
+      + `"eq"`(等于)
+      + `"ne"`(不等于)
+      + `"gt"`(大于)
+      + `"lt"`(小于)
+      + `"gte"`(大于等于)
+      + `"lte"`(小于等于)
+    + 类型`type`值为`"text_content"`时，`type2`值可为
+      + `"include"`(包括)
+      + `"exclude"`(不包括)
+      + `"equal"`(等于)
+    + 类型`type`值为`"date"`时，`type2`值可为
+      + `"bw"`(介于)
+      + `"nb"`(不介于)
+      + `"eq"`(等于)
+      + `"ne"`(不等于)
+      + `"bf"`(早于)
+      + `"nbf"`(不早于)
+      + `"af"`(晚于)
+      + `"naf"`(不晚于)
+    + 类型`type`值为`"validity"`时，`type2`值可为
+      + `"card"`(身份证号码)
+      + `"phone"`(手机号)；
+  + {String | Number} [value1]: 条件值1；
+    + 类型`type`值为`"dropdown"`时，`value1`值可为选区或以英文逗号隔开的字符串，如`"1,2,3"`或者`"A1:B2"`；
+    + 类型`type`值为`"validity"`时，`value1`值可为空；
+    + 其他类型时`value1`值为数值或字符串；
+  + {String | Number} [value2]: 条件值2；
+    + 类型`type`值为`"checkbox"`或者条件类型`type2`值为`"bw"`、`"nb"`时有`value2`值，条件值为数值或日期时，条件值2要大于等于条件值1；其它情况可为空；
+  + {Boolean} [remote]: 自动远程获取选项；默认为`false`；
+  + {Boolean} [prohibitInput]: 输入数据无效时禁止输入；默认为`false`；
+  + {Boolean} [hintShow]: 选中单元格时显示提示语；默认为`false`；
+  + {String} [hintText]: 提示语文本；`hintShow`为`true`时需配置；
+  + {Boolean} [checked]: 是否勾选中复选框；`type`为`checkbox`时需配置；
+
+    一个完整的配置案例请参考源码DEMO示例 [/src/demoData/sheetDataVerification.js](https://github.com/mengshukeji/Luckysheet/blob/master/src/demoData/sheetDataVerification.js)
+------------
 ## 调试信息
 
 初始化所需要的参数，会从简洁的角度出发来考虑设计，但是本地存储的参数则不同。
@@ -1263,7 +1401,7 @@ Luckysheet在初始化完成之后进行的一系列操作，会将更多本地�
         "color": "", //工作表颜色
         "index": 0, //工作表索引
         "status": 1, //激活状态
-        "order": 0, //工作表的顺序
+        "order": 0, //工作表的下标
         "hide": 0,//是否隐藏
         "row": 36, //行数
         "column": 18, //列数
@@ -1275,6 +1413,7 @@ Luckysheet在初始化完成之后进行的一系列操作，会将更多本地�
             "rowhidden":{}, //隐藏行
             "colhidden":{}, //隐藏列
             "borderInfo":{}, //边框
+            "authority":{}, //工作表保护
         },
         "scrollLeft": 0, //左右滚动条位置
         "scrollTop": 315, //上下滚动条位置
@@ -1290,8 +1429,10 @@ Luckysheet在初始化完成之后进行的一系列操作，会将更多本地�
         "frozen": {}, //冻结行列配置
         "freezen": {}, //冻结行列的渲染数据存储
         "chart": [], //图表配置
-        "allowEdit": true, //是否允许编辑
         "zoomRatio":1, // 缩放比例
+        "image":[], //图片
+        "showGridLines": 1, //是否显示网格线
+        "dataVerification":{} //数据验证配置
         
 
         "visibledatarow": [], //所有行的位置

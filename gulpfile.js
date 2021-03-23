@@ -12,6 +12,8 @@ const del = require('delete');
 // Refresh the browser in real time
 const browserSync = require('browser-sync').create();
 const reload = browserSync.reload;
+// proxy
+const { createProxyMiddleware } = require('http-proxy-middleware');
 // According to html reference, files are merged
 // const useref = require('gulp-useref');
 // File merge
@@ -26,6 +28,7 @@ const commonjs = require('@rollup/plugin-commonjs');
 const terser = require('rollup-plugin-terser').terser;
 // rollup babel plugin, support the latest ES grammar
 const babel = require('@rollup/plugin-babel').default;
+// const gulpBabel = require('gulp-babel');
 // Distinguish development and production environments
 const production = process.env.NODE_ENV === 'production' ? true : false;
 
@@ -38,12 +41,20 @@ const uglifyOptions = {
 
 // babel config
 const babelConfig = {
+    compact:false,
     babelHelpers: 'bundled',
     exclude: 'node_modules/**', // Only compile our source code
     plugins: [
     ],
     presets: [
-        '@babel/preset-env'
+        ['@babel/preset-env', {
+            useBuiltIns: 'usage',
+            corejs: 3,
+            targets: {
+                chrome: 58,
+                ie: 11
+            }
+        }]
     ]
 };
 
@@ -52,6 +63,7 @@ const paths = {
     // static resources,contains index.html, fonts and images,and extension plugins dependency
     staticHtml: ['src/*.html'],
     staticFonts: ['src/fonts/**'],
+    staticAssets: ['src/assets/**'],
     staticImages: ['src/plugins/images/*.png'],
     staticExpendPlugins: ['src/expendPlugins/**', '!src/expendPlugins/**/plugin.js'],
     staticDemoData: ['src/demoData/*.js'],
@@ -60,34 +72,33 @@ const paths = {
     // static resources dest
     destStaticHtml: ['dist'],
     destStaticFonts: ['dist/fonts'],
+    destStaticAssets: ['dist/assets'],
     destStaticImages: ['dist/plugins/images'],
     destStaticExpendPlugins: ['dist/expendPlugins'],
     destStaticDemoData: ['dist/demoData'],
     destStaticCssImages: ['dist/css'],
 
     //core es module
-    core: ['src/**/*.js','!src/demoData/*.js','src/expendPlugins/**/plugin.js','!src/plugins/js/*.js'], 
+    core: ['src/**/*.js','!src/demoData/*.js','src/expendPlugins/**/plugin.js','!src/plugins/js/*.js'],
 
      //plugins src
     pluginsCss: ['src/plugins/css/*.css'],
     plugins: ['src/plugins/*.css'],
-    css:['src/css/*.css'],
+    css:['src/css/*.css','node_modules/flatpickr/dist/themes/light.css'],
     pluginsJs:[
-        'src/plugins/js/jquery.min.js',
+        'node_modules/jquery/dist/jquery.min.js',
+        'node_modules/uuid/dist/umd/uuid.min.js',
         'src/plugins/js/clipboard.min.js',
         'src/plugins/js/spectrum.min.js',
         'src/plugins/js/jquery-ui.min.js',
         'src/plugins/js/jquery.mousewheel.min.js',
-        'src/plugins/js/moment.min.js',
-        'src/plugins/js/moment-timezone-with-data.min.js',
-        'src/plugins/js/moment-msdate.js',
-        'src/plugins/js/numeral.min.js',
+        // 'src/plugins/js/numeral.min.js',
         'src/plugins/js/html2canvas.min.js',
-        'src/plugins/js/pako.min.js',
         'src/plugins/js/localforage.min.js',
         'src/plugins/js/lodash.min.js',
-        'src/plugins/js/daterangepicker.js',
-        'src/plugins/js/jstat.min.js'
+        'src/plugins/js/jstat.min.js',
+        'src/plugins/js/crypto-api.min.js',
+        'src/plugins/js/jquery.sPage.min.js'
     ],
 
     //plugins concat
@@ -95,7 +106,7 @@ const paths = {
     concatPlugins: 'plugins.css',
     concatCss: 'luckysheet.css',
     concatPluginsJs: 'plugin.js',
-    
+
     //plugins dest
     destPluginsCss: ['dist/plugins/css'],
     destPlugins: ['dist/plugins'],
@@ -111,12 +122,21 @@ function clean() {
     return del([paths.dist]);
 }
 
+// proxy middleware
+const apiProxy = createProxyMiddleware('/luckysheet/', {
+    target: 'http://luckysheet.lashuju.com/', // set your server address
+    changeOrigin: true, // for vhosted sites
+    ws: true, // proxy websockets
+});
+
 // Static server
 function serve(done) {
     browserSync.init({
         server: {
-            baseDir: paths.dist
-        }
+            baseDir: paths.dist,
+            middleware: [apiProxy],//proxy
+        },
+        ghostMode: false, //默认true，滚动和表单在任何设备上输入将被镜像到所有设备里，会影响本地的协同编辑消息，故关闭
     }, done)
 }
 
@@ -133,6 +153,7 @@ function watcher(done) {
     // watch static
     watch(paths.staticHtml,{ delay: 500 }, series(copyStaticHtml, reloadBrowser));
     watch(paths.staticFonts,{ delay: 500 }, series(copyStaticFonts, reloadBrowser));
+    watch(paths.staticAssets,{ delay: 500 }, series(copyStaticAssets, reloadBrowser));
     watch(paths.staticImages,{ delay: 500 }, series(copyStaticImages, reloadBrowser));
     watch(paths.staticExpendPlugins,{ delay: 500 }, series(copyStaticExpendPlugins, reloadBrowser));
     watch(paths.staticDemoData,{ delay: 500 }, series(copyStaticDemoData, reloadBrowser));
@@ -169,7 +190,9 @@ async function core() {
         file: 'dist/luckysheet.umd.js',
         format: 'umd',
         name: 'luckysheet',
-        sourcemap: true
+        sourcemap: true,
+        inlineDynamicImports:true,
+
     });
 
     if(production){
@@ -177,10 +200,11 @@ async function core() {
             file: 'dist/luckysheet.esm.js',
             format: 'esm',
             name: 'luckysheet',
-            sourcemap: true
+            sourcemap: true,
+            inlineDynamicImports:true,
         });
     }
-    
+
 }
 
 // According to the build tag in html, package js and css
@@ -189,7 +213,7 @@ function pluginsCss() {
         .pipe(concat(paths.concatPluginsCss))
         .pipe(gulpif(production, cleanCSS()))
         .pipe(dest(paths.destPluginsCss))
-    
+
 }
 
 function plugins() {
@@ -222,6 +246,10 @@ function copyStaticFonts(){
     return src(paths.staticFonts)
         .pipe(dest(paths.destStaticFonts));
 }
+function copyStaticAssets(){
+    return src(paths.staticAssets)
+        .pipe(dest(paths.destStaticAssets));
+}
 function copyStaticImages(){
     return src(paths.staticImages)
         .pipe(dest(paths.destStaticImages));
@@ -233,14 +261,18 @@ function copyStaticExpendPlugins(){
 function copyStaticDemoData(){
     return src(paths.staticDemoData)
         .pipe(dest(paths.destStaticDemoData));
+        // .pipe(gulpBabel({
+        //     presets: ['@babel/env']
+        // }))
+        // .pipe(gulp.dest('dist'));
 }
 function copyStaticCssImages(){
     return src(paths.staticCssImages)
         .pipe(dest(paths.destStaticCssImages));
 }
 
-const dev = series(clean, parallel(pluginsCss, plugins, css, pluginsJs, copyStaticHtml, copyStaticFonts, copyStaticImages, copyStaticExpendPlugins, copyStaticDemoData, copyStaticCssImages, core), watcher, serve);
-const build = series(clean, parallel(pluginsCss, plugins, css, pluginsJs, copyStaticHtml, copyStaticFonts, copyStaticImages, copyStaticExpendPlugins, copyStaticDemoData, copyStaticCssImages, core));
+const dev = series(clean, parallel(pluginsCss, plugins, css, pluginsJs, copyStaticHtml, copyStaticFonts, copyStaticAssets, copyStaticImages, copyStaticExpendPlugins, copyStaticDemoData, copyStaticCssImages, core), watcher, serve);
+const build = series(clean, parallel(pluginsCss, plugins, css, pluginsJs, copyStaticHtml, copyStaticFonts, copyStaticAssets, copyStaticImages, copyStaticExpendPlugins, copyStaticDemoData, copyStaticCssImages, core));
 
 exports.dev = dev;
 exports.build = build;

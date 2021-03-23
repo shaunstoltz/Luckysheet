@@ -1,4 +1,4 @@
-const sheetPivotTableData = {
+window.sheetPivotTableData = {
 	"name": "PivotTableData",
 	"color": "",
 	"config": {
@@ -6,7 +6,7 @@ const sheetPivotTableData = {
 	},
 	"index": "6",
 	"chart": [],
-	"status": "0",
+	"status": 0,
 	"order": "6",
 	"hide": 0,
 	"column": 18,
@@ -738,4 +738,4 @@ const sheetPivotTableData = {
 	"scrollTop": 0
 }
 
-export default sheetPivotTableData;
+// export default sheetPivotTableData;

@@ -1,12 +1,14 @@
 const Store = {
     container: null, 
+    loadingObj:{},
     luckysheetfile: null, 
     defaultcolumnNum: 60, 
     defaultrowNum: 84, 
     fullscreenmode: true,
     devicePixelRatio: 1,
 
-	currentSheetIndex: 0,
+    currentSheetIndex: 0,
+    calculateSheetIndex: 0,
 	flowdata: [],
     config: {},
 
@@ -17,13 +19,13 @@ const Store = {
 
     cellmainWidth: 0,
     cellmainHeight: 0,
-    toolbarHeight: 61,
-    infobarHeight: 30,
-    calculatebarHeight: 30,
+    toolbarHeight: 0,
+    infobarHeight: 0,
+    calculatebarHeight: 0,
     rowHeaderWidth: 46,
-    columeHeaderHeight: 20,
+    columnHeaderHeight: 20,
     cellMainSrollBarSize: 12,
-    sheetBarHeight: 27,
+    sheetBarHeight: 31,
     statisticBarHeight: 23,
     luckysheetTableContentHW: [0, 0], 
 
@@ -80,8 +82,8 @@ const Store = {
     luckysheet_cell_selected_extend_time: null,
 
     clearjfundo: true,
-    jfredo: [],
     jfundo: [],
+    jfredo: [],
     lang: 'en', //language
     createChart: '',
     highlightChart: '',
@@ -118,6 +120,7 @@ const Store = {
     measureTextCache:{},
     measureTextCellInfoCache:{},
     measureTextCacheTimeOut:null,
+    cellOverflowMapCache:{},
 
     zoomRatio:1,
 
@@ -125,6 +128,43 @@ const Store = {
     visibledatarow_unique:null,
 
     showGridLines:true,
+
+    toobarObject: {}, //toolbar constant
+    inlineStringEditCache:null,
+    inlineStringEditRange:null,
+
+    fontList:[],
+    defaultFontSize: 10,
+
+    currentSheetView:"viewNormal",
+
+    // cooperative editing
+    cooperativeEdit:{
+        usernameTimeout:{
+
+        },
+        changeCollaborationSize:[], //改变行高或者列宽时，协同提示框需要跟随改变所需数据
+        allDataColumnlen:[],//列宽发生过改变的列
+        merge_range:{},//合并时单元格信息
+        checkoutData:[],//切换表格页时所需数据
+    },
+
+    // Resources that currently need to be loaded asynchronously, especially plugins. 'Core' marks the core rendering process.
+    asyncLoad:['core'],
+    // 默认单元格
+    defaultCell: {
+        bg: null,
+        bl: 0,
+        ct: {fa: "General", t: "n"},
+        fc: "rgb(51, 51, 51)",
+        ff: 0,
+        fs: 11,
+        ht: 1,
+        it: 0,
+        vt: 1,
+        m: '',
+        v: ''
+    }
 
 }
 
